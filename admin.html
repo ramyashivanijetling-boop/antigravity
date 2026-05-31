@@ -537,13 +537,19 @@
 
       // Apply Search Filter
       if (searchQuery) {
-        filtered = filtered.filter(b => 
-          b.txnId.toLowerCase().includes(searchQuery) ||
-          b.utr.toLowerCase().includes(searchQuery) ||
-          b.email.toLowerCase().includes(searchQuery) ||
-          b.phone.includes(searchQuery) ||
-          b.names.some(name => name.toLowerCase().includes(searchQuery))
-        );
+        filtered = filtered.filter(b => {
+          const safeTxnId = b.txnId || "";
+          const safeUtr = b.utr || "";
+          const safeEmail = b.email || "";
+          const safePhone = b.phone || "";
+          const safeNames = Array.isArray(b.names) ? b.names : [];
+          
+          return safeTxnId.toLowerCase().includes(searchQuery) ||
+                 safeUtr.toLowerCase().includes(searchQuery) ||
+                 safeEmail.toLowerCase().includes(searchQuery) ||
+                 safePhone.includes(searchQuery) ||
+                 safeNames.some(name => (name || "").toLowerCase().includes(searchQuery));
+        });
       }
 
       if (filtered.length === 0) {
@@ -552,9 +558,9 @@
       }
 
       tbody.innerHTML = filtered.map(b => {
-        const dateStr = new Date(b.createdAt).toLocaleDateString("en-IN", {
+        const dateStr = b.createdAt ? new Date(b.createdAt).toLocaleDateString("en-IN", {
           day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit"
-        });
+        }) : "N/A";
 
         // Status Badge
         let statusBadge = `<span class="badge pending">Pending</span>`;
@@ -566,25 +572,29 @@
         if (b.status === "pending_verification") {
           actions = `
             <div class="actions-cell">
-              <button class="btn-action btn-approve" onclick="handleAction('${b.txnId}', 'approve', this)">Approve</button>
-              <button class="btn-action btn-reject" onclick="handleAction('${b.txnId}', 'reject', this)">Reject</button>
+              <button class="btn-action btn-approve" onclick="handleAction('${b.txnId || ""}', 'approve', this)">Approve</button>
+              <button class="btn-action btn-reject" onclick="handleAction('${b.txnId || ""}', 'reject', this)">Reject</button>
             </div>
           `;
         } else {
           actions = `<span style="color: var(--muted); font-size:12px; font-style:italic;">No actions</span>`;
         }
 
+        const safeNames = Array.isArray(b.names) ? b.names : [];
+        const safeUtr = b.utr || "N/A";
+        const safeGrand = b.grand || 0;
+
         return `
           <tr>
             <td style="color: var(--ink-2); font-size: 13px;">${dateStr}</td>
-            <td class="ref-code">${b.txnId}</td>
-            <td class="guest-names">${b.names.join(", ")} <div style="font-size:11px; color: var(--muted); margin-top:2px;">${b.qty} ticket(s)</div></td>
+            <td class="ref-code">${b.txnId || "N/A"}</td>
+            <td class="guest-names">${safeNames.join(", ")} <div style="font-size:11px; color: var(--muted); margin-top:2px;">${b.qty || 0} ticket(s)</div></td>
             <td>
-              <div style="font-weight:500;">${b.email}</div>
-              <div style="font-size:12px; color: var(--muted); margin-top:2px;">+91 ${b.phone}</div>
+              <div style="font-weight:500;">${b.email || "N/A"}</div>
+              <div style="font-size:12px; color: var(--muted); margin-top:2px;">+91 ${b.phone || ""}</div>
             </td>
-            <td><span class="utr-code">${b.utr}</span></td>
-            <td style="font-weight:600; font-family: var(--mono);">₹${b.grand.toLocaleString("en-IN")}</td>
+            <td><span class="utr-code">${safeUtr}</span></td>
+            <td style="font-weight:600; font-family: var(--mono);">₹${safeGrand.toLocaleString("en-IN")}</td>
             <td>${statusBadge}</td>
             <td>${actions}</td>
           </tr>
