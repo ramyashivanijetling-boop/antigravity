@@ -445,7 +445,7 @@
     });
 
     async function checkGate() {
-      const passcode = document.getElementById("passcode").value;
+      const passcode = document.getElementById("passcode").value.trim();
       const errorMsg = document.getElementById("gate-error");
       errorMsg.style.display = "none";
 

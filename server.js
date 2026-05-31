@@ -425,8 +425,8 @@ app.get("/api/booking-details/:txnId", async (req, res) => {
 
 // Middleware to verify Admin passcode
 function verifyAdmin(req, res, next) {
-  const clientPasscode = req.headers["x-admin-passcode"];
-  const correctPasscode = process.env.ADMIN_PASSCODE || "waakili2026";
+  const clientPasscode = (req.headers["x-admin-passcode"] || "").trim();
+  const correctPasscode = (process.env.ADMIN_PASSCODE || "waakili2026").trim();
 
   if (clientPasscode !== correctPasscode) {
     return res.status(401).json({ error: "Unauthorized. Invalid Admin Passcode." });
@@ -437,14 +437,15 @@ function verifyAdmin(req, res, next) {
 // Admin: Login endpoint (Triggers security email notification)
 app.post("/api/admin/login", async (req, res) => {
   const { passcode } = req.body;
-  const correctPasscode = process.env.ADMIN_PASSCODE || "waakili2026";
+  const correctPasscode = (process.env.ADMIN_PASSCODE || "waakili2026").trim();
+  const cleanPasscode = (passcode || "").trim();
   const clientIp = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "Unknown IP";
 
-  if (passcode === correctPasscode) {
+  if (cleanPasscode === correctPasscode) {
     sendAdminLoginAlertEmail(clientIp, "success");
     return res.json({ success: true });
   } else {
-    sendAdminLoginAlertEmail(clientIp, "failed", passcode);
+    sendAdminLoginAlertEmail(clientIp, "failed", cleanPasscode);
     return res.status(401).json({ error: "Invalid passcode." });
   }
 });
