@@ -1,0 +1,17 @@
+{
+  "name": "waakili-booking-platform",
+  "version": "1.0.0",
+  "description": "Waakili Telangana Heritage booking platform with PhonePe integration",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.106.2",
+    "axios": "^1.6.8",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "nodemailer": "^6.9.13"
+  }
+}
