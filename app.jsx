@@ -29,7 +29,7 @@ const Border = () => (
 const Opening = ({ onBook }) => {
   const [phase, setPhase] = useState(0); // 0: presents, 1: waakili
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase(1), 1800);
+    const t1 = setTimeout(() => setPhase(1), 700);
     return () => clearTimeout(t1);
   }, []);
 
@@ -56,7 +56,7 @@ const Opening = ({ onBook }) => {
             <Diamond size={4} color="var(--terracotta)" />
             <span>4:00 PM — 9:00 PM</span>
             <Diamond size={4} color="var(--terracotta)" />
-            <span>Hyderabad</span>
+            <span>Phoenix Arena, Hyderabad</span>
           </div>
           <button className="btn-primary" onClick={onBook}>
             Book your seat — ₹499
@@ -84,9 +84,7 @@ const About = () => (
     <div className="about-grid">
       <div className="about-meaning">
         <div className="pull">"Waakili"</div>
-        <div className="pull-sub">
-          the entrance of a home —<br />a welcoming threshold.
-        </div>
+
         <ul className="about-points">
           {[
             "Folk dance & music performances",
@@ -158,7 +156,7 @@ const Details = ({ onBook }) => (
       </div>
 
       <button className="btn-primary big" onClick={onBook}>
-        Reserve your threshold →
+        Book Now
       </button>
     </div>
   </section>
@@ -423,8 +421,38 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
                     <img src={qrCodeUrl} alt="UPI QR Code" />
                     <div className="scanner-line"></div>
                   </div>
-                  <p className="phonepe-qr-text">Scan with PhonePe, Google Pay, Paytm or BHIM to pay</p>
-                  <p style={{ fontSize: "11px", color: "var(--ink-2)", margin: "4px 0 0 0" }}>UPI ID: <strong>{upiConfig.upiId}</strong></p>
+                  <p style={{ fontSize: "11px", color: "var(--ink-2)", margin: "4px 0 12px 0" }}>UPI ID: <strong>{upiConfig.upiId}</strong></p>
+                  
+                  <div className="mobile-pay-button-container" style={{ margin: "8px 0" }}>
+                    <a 
+                      href={upiLink} 
+                      className="btn-pay-intent"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        background: "#5f259f",
+                        color: "white",
+                        padding: "12px 20px",
+                        borderRadius: "6px",
+                        textDecoration: "none",
+                        fontWeight: "600",
+                        fontSize: "14px",
+                        fontFamily: "var(--sans)",
+                        boxShadow: "0 4px 12px rgba(95, 37, 159, 0.2)"
+                      }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+                        <line x1="12" y1="18" x2="12.01" y2="18" />
+                      </svg>
+                      Pay via UPI App (PhonePe / GPay)
+                    </a>
+                    <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "6px", fontStyle: "italic" }}>
+                      Tap to pay instantly on mobile devices
+                    </div>
+                  </div>
                 </div>
 
                 <div className="phonepe-divider"><span>VERIFICATION</span></div>
