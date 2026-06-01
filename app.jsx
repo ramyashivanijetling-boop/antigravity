@@ -47,7 +47,7 @@ const Opening = ({ onBook }) => {
         <div className={`opening-title ${phase >= 1 ? "in" : ""}`}>
           <div className="telugu">వాకిలి</div>
           <h1 className="waakili">WAAKILI</h1>
-          <div className="tagline">A Walk Into Telangana Heritage</div>
+          <div className="tagline">A Walk into Timeless Heritage of Telangana</div>
         </div>
 
         <div className={`opening-meta ${phase >= 1 ? "in" : ""}`}>
@@ -519,7 +519,7 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
                 <div className="ticket-main">
                   <div className="t-presents">Antigravityy presents</div>
                   <div className="t-title">WAAKILI</div>
-                  <div className="t-sub">A Walk Into Telangana Heritage</div>
+                  <div className="t-sub">A Walk into Timeless Heritage of Telangana</div>
                   <div className="t-grid">
                     <div>
                       <div className="t-k">{qty === 1 ? "Guest" : "Guests"}</div>
@@ -576,7 +576,7 @@ const Footer = ({ onBook }) => (
       <div className="footer-left">
         <div className="footer-kicker">Antigravityy presents</div>
         <div className="footer-title">WAAKILI</div>
-        <div className="footer-sub">A Walk Into Telangana Heritage · 28 June 2026</div>
+        <div className="footer-sub">A Walk into Timeless Heritage of Telangana · 28 June 2026</div>
       </div>
       <div className="footer-right">
         <button className="btn-primary" onClick={onBook}>Book your seat</button>

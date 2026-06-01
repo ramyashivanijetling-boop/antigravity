@@ -123,7 +123,7 @@ async function sendEmailPendingVerification(booking, txnId) {
   const emailBody = `
 Namaskar,
 
-We have received your booking request for WAAKILI — A Walk Into Telangana Heritage.
+We have received your booking request for WAAKILI — A Walk into Timeless Heritage of Telangana.
 
 ========================================
 DETAILS
@@ -179,7 +179,7 @@ async function sendEmailConfirmation(booking, txnId) {
   const emailBody = `
 Namaskar,
 
-Your tickets for WAAKILI — A Walk Into Telangana Heritage are confirmed! Your payment has been successfully verified.
+Your tickets for WAAKILI — A Walk into Timeless Heritage of Telangana are confirmed! Your payment has been successfully verified.
 
 ========================================
 TICKET DETAILS
@@ -238,7 +238,7 @@ async function sendEmailRejection(booking, txnId) {
   const emailBody = `
 Namaskar,
 
-We were unable to verify your payment for WAAKILI — A Walk Into Telangana Heritage.
+We were unable to verify your payment for WAAKILI — A Walk into Timeless Heritage of Telangana.
 
 ========================================
 DETAILS
