@@ -372,8 +372,8 @@ app.post("/api/pay", async (req, res) => {
       localBookings[txnId] = bookingRecord;
     }
 
-    // Trigger Pending Email (in background)
-    sendEmailPendingVerification(bookingRecord, txnId);
+    // Trigger Pending Email
+    await sendEmailPendingVerification(bookingRecord, txnId);
 
     return res.json({ success: true, txnId, status: "pending_verification" });
   } catch (error) {
@@ -442,10 +442,10 @@ app.post("/api/admin/login", async (req, res) => {
   const clientIp = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "Unknown IP";
 
   if (cleanPasscode === correctPasscode) {
-    sendAdminLoginAlertEmail(clientIp, "success");
+    await sendAdminLoginAlertEmail(clientIp, "success");
     return res.json({ success: true });
   } else {
-    sendAdminLoginAlertEmail(clientIp, "failed", cleanPasscode);
+    await sendAdminLoginAlertEmail(clientIp, "failed", cleanPasscode);
     return res.status(401).json({ error: "Invalid passcode." });
   }
 });
@@ -520,7 +520,7 @@ app.post("/api/admin/action", verifyAdmin, async (req, res) => {
       } else {
         localBookings[txnId].status = "success";
       }
-      sendEmailConfirmation(booking, txnId);
+      await sendEmailConfirmation(booking, txnId);
       return res.json({ success: true, status: "success" });
     } else if (action === "reject") {
       booking.status = "rejected";
@@ -529,7 +529,7 @@ app.post("/api/admin/action", verifyAdmin, async (req, res) => {
       } else {
         localBookings[txnId].status = "rejected";
       }
-      sendEmailRejection(booking, txnId);
+      await sendEmailRejection(booking, txnId);
       return res.json({ success: true, status: "rejected" });
     } else {
       return res.status(400).json({ error: "Invalid action. Must be 'approve' or 'reject'." });
