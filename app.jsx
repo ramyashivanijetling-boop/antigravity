@@ -174,6 +174,16 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
   const [upiConfig, setUpiConfig] = useState({ upiId: "anti.gravityy24@okaxis", upiName: "Antigravityy" });
   const [payLoading, setPayLoading] = useState(false);
   const [paymentError, setPaymentError] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyUPI = () => {
+    navigator.clipboard.writeText(upiConfig.upiId)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(err => console.error("Failed to copy UPI ID:", err));
+  };
 
   // Adjust guest names length to match ticket quantity
   useEffect(() => {
@@ -424,33 +434,38 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
                   <p style={{ fontSize: "11px", color: "var(--ink-2)", margin: "4px 0 12px 0" }}>UPI ID: <strong>{upiConfig.upiId}</strong></p>
                   
                   <div className="mobile-pay-button-container" style={{ margin: "8px 0" }}>
-                    <a 
-                      href={upiLink} 
-                      className="btn-pay-intent"
-                      style={{
+                    <button 
+                      onClick={handleCopyUPI} 
+                      className="btn-phonepe"
+                      style={{ 
+                        background: copied ? "#2e7d32" : "#5f259f", 
+                        borderColor: copied ? "#2e7d32" : "#5f259f",
                         display: "inline-flex",
                         alignItems: "center",
                         justifyContent: "center",
                         gap: "8px",
-                        background: "#5f259f",
-                        color: "white",
-                        padding: "12px 20px",
-                        borderRadius: "6px",
-                        textDecoration: "none",
-                        fontWeight: "600",
-                        fontSize: "14px",
-                        fontFamily: "var(--sans)",
-                        boxShadow: "0 4px 12px rgba(95, 37, 159, 0.2)"
+                        cursor: "pointer"
                       }}
                     >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
-                        <line x1="12" y1="18" x2="12.01" y2="18" />
-                      </svg>
-                      Pay via UPI App (PhonePe / GPay)
-                    </a>
+                      {copied ? (
+                        <>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                          UPI ID Copied!
+                        </>
+                      ) : (
+                        <>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                          </svg>
+                          Copy UPI ID to Pay
+                        </>
+                      )}
+                    </button>
                     <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "6px", fontStyle: "italic" }}>
-                      Tap to pay instantly on mobile devices
+                      Tap to copy, paste in your UPI app, and pay ₹{grand.toLocaleString("en-IN")}
                     </div>
                   </div>
                 </div>
