@@ -436,13 +436,15 @@ function verifyAdmin(req, res, next) {
 
 // Admin: Login endpoint (Triggers security email notification)
 app.post("/api/admin/login", async (req, res) => {
-  const { passcode } = req.body;
+  const { passcode, isAutoCheck } = req.body;
   const correctPasscode = (process.env.ADMIN_PASSCODE || "waakili2026").trim();
   const cleanPasscode = (passcode || "").trim();
   const clientIp = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "Unknown IP";
 
   if (cleanPasscode === correctPasscode) {
-    await sendAdminLoginAlertEmail(clientIp, "success");
+    if (!isAutoCheck) {
+      await sendAdminLoginAlertEmail(clientIp, "success");
+    }
     return res.json({ success: true });
   } else {
     await sendAdminLoginAlertEmail(clientIp, "failed", cleanPasscode);

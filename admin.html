@@ -440,11 +440,11 @@
       const savedCode = localStorage.getItem("admin_passcode");
       if (savedCode) {
         document.getElementById("passcode").value = savedCode;
-        checkGate();
+        checkGate(true);
       }
     });
 
-    async function checkGate() {
+    async function checkGate(isAutoCheck = false) {
       const passcode = document.getElementById("passcode").value.trim();
       const errorMsg = document.getElementById("gate-error");
       errorMsg.style.display = "none";
@@ -453,7 +453,7 @@
         const response = await fetch("/api/admin/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ passcode })
+          body: JSON.stringify({ passcode, isAutoCheck })
         });
 
         if (response.ok) {
