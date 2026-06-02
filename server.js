@@ -9,30 +9,46 @@ require("dotenv").config();
 
 const app = express();
 
-// Initialize SMTP Transporter Pool
-let transporter = null;
-if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-  const smtpPort = parseInt(process.env.SMTP_PORT) || 465; // Default to 465 (SSL)
-  transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "smtp.gmail.com",
-    port: smtpPort,
-    secure: smtpPort === 465,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
-    },
-    pool: true, // Keep connection open
-    maxConnections: 5,
-    maxMessages: 100,
-    rateDelta: 1000,
-    rateLimit: 5,
-    connectionTimeout: 5000,
-    greetingTimeout: 5000,
-    socketTimeout: 5000
-  });
-  console.log(`✉️ SMTP Connection Pool initialized on ${process.env.SMTP_HOST || "smtp.gmail.com"}:${smtpPort} (secure: ${smtpPort === 465})`);
+// Initialize Resend Email API client logger
+if (process.env.RESEND_API_KEY) {
+  console.log("✉️ Resend Email API initialized securely.");
 } else {
-  console.log("⚠️ SMTP credentials missing. Emails will be simulated in the console.");
+  console.log("⚠️ RESEND_API_KEY missing in environment. Email dispatches will be simulated in terminal logs only.");
+}
+
+// Helper: Send email via Resend HTTP API
+async function sendEmailViaResend(to, subject, text, bcc = null) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.log(`[SIMULATED EMAIL NOT SENT] No API Key. To: ${to} | Subject: ${subject}`);
+    return;
+  }
+
+  try {
+    const fromAddress = process.env.RESEND_FROM || "Waakili Heritage <tickets@anti-gravityy.in>";
+    const payload = {
+      from: fromAddress,
+      to: Array.isArray(to) ? to : [to],
+      subject: subject,
+      text: text,
+    };
+
+    if (bcc) {
+      payload.bcc = Array.isArray(bcc) ? bcc : [bcc];
+    }
+
+    const response = await axios.post("https://api.resend.com/emails", payload, {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    console.log(`✅ Resend Email dispatched successfully to ${to}. ID: ${response.data.id}`);
+  } catch (err) {
+    const errorDetails = err.response && err.response.data ? JSON.stringify(err.response.data) : err.message;
+    console.error(`❌ Resend API Error sending email to ${to}:`, errorDetails);
+  }
 }
 
 
@@ -133,19 +149,8 @@ Status: ${status.toUpperCase()}
 
   console.log(`\n🚨 SECURITY ALERT: Admin Login Attempt [${status.toUpperCase()}] from IP ${ip}`);
 
-  if (transporter) {
-    try {
-      await transporter.sendMail({
-        from: `Security Alerts <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
-        to: process.env.SMTP_USER, // Sends alert to yourself
-        subject: emailSubject,
-        text: emailBody,
-      });
-      console.log(`✅ Security alert email dispatched to ${process.env.SMTP_USER}`);
-    } catch (err) {
-      console.error("❌ Error sending security alert email:", err.message);
-    }
-  }
+  const alertRecipient = process.env.SMTP_USER || "anti.gravityy24@gmail.com";
+  await sendEmailViaResend(alertRecipient, emailSubject, emailBody);
 }
 
 // Helper: Send Pending Verification Email
@@ -181,19 +186,7 @@ An evening to walk into.
   console.log(emailBody.trim());
   console.log("======================================================================\n");
 
-  if (transporter) {
-    try {
-      await transporter.sendMail({
-        from: `Waakili Heritage <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
-        to: booking.email,
-        subject: emailSubject,
-        text: emailBody,
-      });
-      console.log(`✅ Success: Pending email sent to ${booking.email}`);
-    } catch (err) {
-      console.error("❌ Error sending pending email via SMTP:", err.message);
-    }
-  }
+  await sendEmailViaResend(booking.email, emailSubject, emailBody);
 }
 
 // Helper: Send Ticket Confirmation Email
@@ -233,20 +226,8 @@ An evening to walk into.
   console.log(emailBody.trim());
   console.log("======================================================================\n");
 
-  if (transporter) {
-    try {
-      await transporter.sendMail({
-        from: `Waakili Heritage <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
-        to: booking.email,
-        bcc: process.env.SMTP_USER, // Send a copy to yourself
-        subject: emailSubject,
-        text: emailBody,
-      });
-      console.log(`✅ Success: Real confirmation email successfully dispatched to ${booking.email}`);
-    } catch (err) {
-      console.error("❌ Error sending real email via SMTP:", err.message);
-    }
-  }
+  const alertRecipient = process.env.SMTP_USER || "anti.gravityy24@gmail.com";
+  await sendEmailViaResend(booking.email, emailSubject, emailBody, alertRecipient);
 }
 
 // Helper: Send Rejection Email
@@ -279,19 +260,7 @@ Regards,
   console.log(emailBody.trim());
   console.log("======================================================================\n");
 
-  if (transporter) {
-    try {
-      await transporter.sendMail({
-        from: `Waakili Heritage <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
-        to: booking.email,
-        subject: emailSubject,
-        text: emailBody,
-      });
-      console.log(`✅ Success: Rejection email sent to ${booking.email}`);
-    } catch (err) {
-      console.error("❌ Error sending rejection email via SMTP:", err.message);
-    }
-  }
+  await sendEmailViaResend(booking.email, emailSubject, emailBody);
 }
 
 // API: Config endpoint (Provides UPI ID and Name to the frontend QR generator dynamically)
