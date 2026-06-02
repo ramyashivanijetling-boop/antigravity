@@ -9,6 +9,33 @@ require("dotenv").config();
 
 const app = express();
 
+// Initialize SMTP Transporter Pool
+let transporter = null;
+if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+  const smtpPort = parseInt(process.env.SMTP_PORT) || 465; // Default to 465 (SSL)
+  transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || "smtp.gmail.com",
+    port: smtpPort,
+    secure: smtpPort === 465,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS
+    },
+    pool: true, // Keep connection open
+    maxConnections: 5,
+    maxMessages: 100,
+    rateDelta: 1000,
+    rateLimit: 5,
+    connectionTimeout: 5000,
+    greetingTimeout: 5000,
+    socketTimeout: 5000
+  });
+  console.log(`✉️ SMTP Connection Pool initialized on ${process.env.SMTP_HOST || "smtp.gmail.com"}:${smtpPort} (secure: ${smtpPort === 465})`);
+} else {
+  console.log("⚠️ SMTP credentials missing. Emails will be simulated in the console.");
+}
+
+
 // Hardening HTTP Headers for Security
 app.disable("x-powered-by"); 
 app.use((req, res, next) => {
@@ -40,6 +67,17 @@ app.get("/styles.css", (req, res) => {
 app.get("/app.jsx", (req, res) => {
   res.setHeader("Content-Type", "text/javascript");
   res.sendFile(path.join(__dirname, "app.jsx"));
+});
+
+// Serve Favicon static routes
+app.get("/favi.jpeg", (req, res) => {
+  res.setHeader("Content-Type", "image/jpeg");
+  res.sendFile(path.join(__dirname, "favi.jpeg"));
+});
+
+app.get("/favicon.ico", (req, res) => {
+  res.setHeader("Content-Type", "image/jpeg");
+  res.sendFile(path.join(__dirname, "favi.jpeg"));
 });
 
 // Serve Waakili.html at root URL
@@ -95,15 +133,8 @@ Status: ${status.toUpperCase()}
 
   console.log(`\n🚨 SECURITY ALERT: Admin Login Attempt [${status.toUpperCase()}] from IP ${ip}`);
 
-  if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+  if (transporter) {
     try {
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || "smtp.gmail.com",
-        port: parseInt(process.env.SMTP_PORT) || 587,
-        secure: parseInt(process.env.SMTP_PORT) === 465,
-        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-      });
-
       await transporter.sendMail({
         from: `Security Alerts <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
         to: process.env.SMTP_USER, // Sends alert to yourself
@@ -150,15 +181,8 @@ An evening to walk into.
   console.log(emailBody.trim());
   console.log("======================================================================\n");
 
-  if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+  if (transporter) {
     try {
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || "smtp.gmail.com",
-        port: parseInt(process.env.SMTP_PORT) || 587,
-        secure: parseInt(process.env.SMTP_PORT) === 465,
-        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-      });
-
       await transporter.sendMail({
         from: `Waakili Heritage <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
         to: booking.email,
@@ -209,15 +233,8 @@ An evening to walk into.
   console.log(emailBody.trim());
   console.log("======================================================================\n");
 
-  if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+  if (transporter) {
     try {
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || "smtp.gmail.com",
-        port: parseInt(process.env.SMTP_PORT) || 587,
-        secure: parseInt(process.env.SMTP_PORT) === 465,
-        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-      });
-
       await transporter.sendMail({
         from: `Waakili Heritage <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
         to: booking.email,
@@ -262,15 +279,8 @@ Regards,
   console.log(emailBody.trim());
   console.log("======================================================================\n");
 
-  if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+  if (transporter) {
     try {
-      const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST || "smtp.gmail.com",
-        port: parseInt(process.env.SMTP_PORT) || 587,
-        secure: parseInt(process.env.SMTP_PORT) === 465,
-        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-      });
-
       await transporter.sendMail({
         from: `Waakili Heritage <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
         to: booking.email,
@@ -372,8 +382,10 @@ app.post("/api/pay", async (req, res) => {
       localBookings[txnId] = bookingRecord;
     }
 
-    // Trigger Pending Email
-    await sendEmailPendingVerification(bookingRecord, txnId);
+    // Trigger Pending Email asynchronously
+    sendEmailPendingVerification(bookingRecord, txnId).catch(err => {
+      console.error("❌ Background Error sending pending verification email:", err.message);
+    });
 
     return res.json({ success: true, txnId, status: "pending_verification" });
   } catch (error) {
@@ -443,11 +455,15 @@ app.post("/api/admin/login", async (req, res) => {
 
   if (cleanPasscode === correctPasscode) {
     if (!isAutoCheck) {
-      await sendAdminLoginAlertEmail(clientIp, "success");
+      sendAdminLoginAlertEmail(clientIp, "success").catch(err => {
+        console.error("❌ Background Error sending admin login alert email:", err.message);
+      });
     }
     return res.json({ success: true });
   } else {
-    await sendAdminLoginAlertEmail(clientIp, "failed", cleanPasscode);
+    sendAdminLoginAlertEmail(clientIp, "failed", cleanPasscode).catch(err => {
+      console.error("❌ Background Error sending admin login alert email:", err.message);
+    });
     return res.status(401).json({ error: "Invalid passcode." });
   }
 });
@@ -522,7 +538,9 @@ app.post("/api/admin/action", verifyAdmin, async (req, res) => {
       } else {
         localBookings[txnId].status = "success";
       }
-      await sendEmailConfirmation(booking, txnId);
+      sendEmailConfirmation(booking, txnId).catch(err => {
+        console.error("❌ Background Error sending confirmation email:", err.message);
+      });
       return res.json({ success: true, status: "success" });
     } else if (action === "reject") {
       booking.status = "rejected";
@@ -531,7 +549,9 @@ app.post("/api/admin/action", verifyAdmin, async (req, res) => {
       } else {
         localBookings[txnId].status = "rejected";
       }
-      await sendEmailRejection(booking, txnId);
+      sendEmailRejection(booking, txnId).catch(err => {
+        console.error("❌ Background Error sending rejection email:", err.message);
+      });
       return res.json({ success: true, status: "rejected" });
     } else {
       return res.status(400).json({ error: "Invalid action. Must be 'approve' or 'reject'." });
