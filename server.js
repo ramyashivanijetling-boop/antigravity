@@ -9,45 +9,48 @@ require("dotenv").config();
 
 const app = express();
 
-// Initialize Resend Email API client logger
-if (process.env.RESEND_API_KEY) {
-  console.log("✉️ Resend Email API initialized securely.");
+// Initialize Brevo Email API client logger
+if (process.env.BREVO_API_KEY) {
+  console.log("✉️ Brevo Email API initialized securely.");
 } else {
-  console.log("⚠️ RESEND_API_KEY missing in environment. Email dispatches will be simulated in terminal logs only.");
+  console.log("⚠️ BREVO_API_KEY missing in environment. Email dispatches will be simulated in terminal logs only.");
 }
 
-// Helper: Send email via Resend HTTP API
-async function sendEmailViaResend(to, subject, text, bcc = null) {
-  const apiKey = process.env.RESEND_API_KEY;
+// Helper: Send email via Brevo HTTP API
+async function sendEmailViaBrevo(to, subject, text, bcc = null) {
+  const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) {
-    console.log(`[SIMULATED EMAIL NOT SENT] No API Key. To: ${to} | Subject: ${subject}`);
+    console.log(`[SIMULATED EMAIL NOT SENT] No Brevo API Key. To: ${to} | Subject: ${subject}`);
     return;
   }
 
   try {
-    const fromAddress = process.env.RESEND_FROM || "Waakili Heritage <tickets@anti-gravityy.in>";
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || "anti.gravityy24@gmail.com";
+    const senderName = process.env.BREVO_SENDER_NAME || "Waakili Heritage";
+
     const payload = {
-      from: fromAddress,
-      to: Array.isArray(to) ? to : [to],
+      sender: { name: senderName, email: senderEmail },
+      to: [{ email: to }],
       subject: subject,
-      text: text,
+      textContent: text,
     };
 
     if (bcc) {
-      payload.bcc = Array.isArray(bcc) ? bcc : [bcc];
+      payload.bcc = [{ email: bcc }];
     }
 
-    const response = await axios.post("https://api.resend.com/emails", payload, {
+    const response = await axios.post("https://api.brevo.com/v3/smtp/email", payload, {
       headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
+        "api-key": apiKey,
+        "content-type": "application/json",
+        accept: "application/json",
       },
     });
 
-    console.log(`✅ Resend Email dispatched successfully to ${to}. ID: ${response.data.id}`);
+    console.log(`✅ Brevo Email dispatched successfully to ${to}. Message ID: ${response.data.messageId}`);
   } catch (err) {
     const errorDetails = err.response && err.response.data ? JSON.stringify(err.response.data) : err.message;
-    console.error(`❌ Resend API Error sending email to ${to}:`, errorDetails);
+    console.error(`❌ Brevo API Error sending email to ${to}:`, errorDetails);
   }
 }
 
@@ -150,7 +153,7 @@ Status: ${status.toUpperCase()}
   console.log(`\n🚨 SECURITY ALERT: Admin Login Attempt [${status.toUpperCase()}] from IP ${ip}`);
 
   const alertRecipient = process.env.SMTP_USER || "anti.gravityy24@gmail.com";
-  await sendEmailViaResend(alertRecipient, emailSubject, emailBody);
+  await sendEmailViaBrevo(alertRecipient, emailSubject, emailBody);
 }
 
 // Helper: Send Pending Verification Email
@@ -186,7 +189,7 @@ An evening to walk into.
   console.log(emailBody.trim());
   console.log("======================================================================\n");
 
-  await sendEmailViaResend(booking.email, emailSubject, emailBody);
+  await sendEmailViaBrevo(booking.email, emailSubject, emailBody);
 }
 
 // Helper: Send Ticket Confirmation Email
@@ -227,7 +230,7 @@ An evening to walk into.
   console.log("======================================================================\n");
 
   const alertRecipient = process.env.SMTP_USER || "anti.gravityy24@gmail.com";
-  await sendEmailViaResend(booking.email, emailSubject, emailBody, alertRecipient);
+  await sendEmailViaBrevo(booking.email, emailSubject, emailBody, alertRecipient);
 }
 
 // Helper: Send Rejection Email
@@ -260,7 +263,7 @@ Regards,
   console.log(emailBody.trim());
   console.log("======================================================================\n");
 
-  await sendEmailViaResend(booking.email, emailSubject, emailBody);
+  await sendEmailViaBrevo(booking.email, emailSubject, emailBody);
 }
 
 // API: Config endpoint (Provides UPI ID and Name to the frontend QR generator dynamically)
