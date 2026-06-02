@@ -174,26 +174,7 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
   const [upiConfig, setUpiConfig] = useState({ upiId: "anti.gravityy24@okaxis", upiName: "Antigravityy" });
   const [payLoading, setPayLoading] = useState(false);
   const [paymentError, setPaymentError] = useState("");
-  const [copied, setCopied] = useState(false);
-  const [amountCopied, setAmountCopied] = useState(false);
 
-  const handleCopyUPI = () => {
-    navigator.clipboard.writeText(upiConfig.upiId)
-      .then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      })
-      .catch(err => console.error("Failed to copy UPI ID:", err));
-  };
-
-  const handleCopyAmount = () => {
-    navigator.clipboard.writeText(grand.toString())
-      .then(() => {
-        setAmountCopied(true);
-        setTimeout(() => setAmountCopied(false), 2000);
-      })
-      .catch(err => console.error("Failed to copy amount:", err));
-  };
 
   // Adjust guest names length to match ticket quantity
   useEffect(() => {
@@ -441,77 +422,8 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
                     <img src={qrCodeUrl} alt="UPI QR Code" />
                     <div className="scanner-line"></div>
                   </div>
-                  <p style={{ fontSize: "11px", color: "var(--ink-2)", margin: "4px 0 12px 0" }}>UPI ID: <strong>{upiConfig.upiId}</strong></p>
-                  
-                  <div className="mobile-pay-button-container" style={{ margin: "8px 0", display: "flex", flexDirection: "column", gap: "10px", width: "100%" }}>
-                    <button 
-                      onClick={handleCopyUPI} 
-                      className="btn-phonepe"
-                      style={{ 
-                        background: copied ? "#2e7d32" : "#5f259f", 
-                        borderColor: copied ? "#2e7d32" : "#5f259f",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "8px",
-                        cursor: "pointer",
-                        margin: 0
-                      }}
-                    >
-                      {copied ? (
-                        <>
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                          UPI ID Copied!
-                        </>
-                      ) : (
-                        <>
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                          </svg>
-                          Copy UPI ID
-                        </>
-                      )}
-                    </button>
-
-                    <button 
-                      onClick={handleCopyAmount} 
-                      className="btn-phonepe"
-                      style={{ 
-                        background: amountCopied ? "#2e7d32" : "var(--ink)", 
-                        borderColor: amountCopied ? "#2e7d32" : "var(--ink)",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "8px",
-                        cursor: "pointer",
-                        margin: 0
-                      }}
-                    >
-                      {amountCopied ? (
-                        <>
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                          Amount Copied!
-                        </>
-                      ) : (
-                        <>
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                          </svg>
-                          Copy Amount (₹{grand})
-                        </>
-                      )}
-                    </button>
-
-                    <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "4px", fontStyle: "italic" }}>
-                      Tap both buttons, then paste the details in your UPI app to pay.
-                    </div>
-                  </div>
+                  <p className="phonepe-qr-text">Scan with PhonePe, Google Pay, Paytm or BHIM to pay</p>
+                  <p style={{ fontSize: "11px", color: "var(--ink-2)", margin: "4px 0 0 0" }}>UPI ID: <strong>{upiConfig.upiId}</strong></p>
                 </div>
 
                 <div className="phonepe-divider"><span>VERIFICATION</span></div>
