@@ -568,8 +568,165 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
   );
 };
 
+// ---------- Policy / Info Modal ----------
+const PolicyModal = ({ policyType, onClose }) => {
+  if (!policyType) return null;
+
+  let title = "";
+  let content = null;
+
+  if (policyType === "terms") {
+    title = "Terms & Conditions";
+    content = (
+      <div className="policy-content">
+        <h4>Eligibility</h4>
+        <p>By using this website, you confirm that:</p>
+        <ul>
+          <li>You are at least 18 years of age, or</li>
+          <li>You are using the website under the supervision of a parent or legal guardian.</li>
+          <li>The information provided by you is accurate and complete.</li>
+        </ul>
+
+        <h4>Pricing & Payments</h4>
+        <ul>
+          <li>All prices displayed on the website are in Indian Rupees (INR).</li>
+          <li>Prices are subject to change without prior notice.</li>
+          <li>Payments are processed through secure third-party payment gateways.</li>
+          <li>Waakili is not responsible for payment failures caused by banks, payment gateways, or technical issues.</li>
+        </ul>
+
+        <h4>Intellectual Property</h4>
+        <p>All content on this website, including:</p>
+        <ul>
+          <li>Logos</li>
+          <li>Product Images</li>
+          <li>Graphics</li>
+          <li>Text</li>
+          <li>Website Design</li>
+        </ul>
+        <p>is the property of Waakili and is protected by applicable intellectual property laws. Unauthorized copying, reproduction, or distribution is strictly prohibited.</p>
+
+        <h4>User Conduct</h4>
+        <p>Users agree not to:</p>
+        <ul>
+          <li>Use the website for unlawful activities.</li>
+          <li>Attempt unauthorized access to website systems.</li>
+          <li>Upload malicious software or harmful content.</li>
+          <li>Misrepresent personal information.</li>
+        </ul>
+        <p>Violation of these terms may result in termination of access.</p>
+
+        <h4>Limitation of Liability</h4>
+        <p>Waakili shall not be liable for:</p>
+        <ul>
+          <li>Indirect or consequential damages.</li>
+          <li>Loss of profits or business opportunities.</li>
+          <li>Delays caused by third-party service providers.</li>
+          <li>Technical interruptions beyond our control.</li>
+        </ul>
+
+        <h4>Privacy</h4>
+        <p>Customer information is collected and handled according to our Privacy Policy available on the website.</p>
+
+        <h4>Governing Law</h4>
+        <p>These Terms & Conditions shall be governed by and interpreted in accordance with the laws of India. Any disputes arising from the use of this website shall be subject to the jurisdiction of the competent courts in India.</p>
+      </div>
+    );
+  } else if (policyType === "refund") {
+    title = "Refund Policy";
+    content = (
+      <div className="policy-content">
+        <p><strong>We don't offer any refunds.</strong> All ticket purchases and seat bookings are final and non-refundable.</p>
+      </div>
+    );
+  } else if (policyType === "privacy") {
+    title = "Privacy Policy";
+    content = (
+      <div className="policy-content">
+        <h4>1. Introduction</h4>
+        <p>WAAKILI (“we”, “our”, “us”) respects your privacy and is committed to protecting your personal information when you visit our website, purchase our products, or interact with us.</p>
+
+        <h4>2. Information We Collect</h4>
+        <p>We may collect the following information:</p>
+        <ul>
+          <li>Name</li>
+          <li>Mobile number</li>
+          <li>Email address</li>
+          <li>Billing address</li>
+          <li>Payment details (processed via secure payment gateways)</li>
+          <li>Order history</li>
+          <li>Device and browsing data (IP address, cookies, etc.)</li>
+        </ul>
+
+        <h4>3. How We Use Your Information</h4>
+        <p>We use your data to:</p>
+        <ul>
+          <li>Provide customer support</li>
+          <li>Improve our services</li>
+          <li>Comply with legal obligations</li>
+        </ul>
+        <p>We do not sell or rent your personal information to third parties.</p>
+
+        <h4>4. Payment Security</h4>
+        <p>All payments are processed through secure third-party payment gateways. We do not store your card, UPI, or banking details.</p>
+
+        <h4>5. Cookies</h4>
+        <p>We may use cookies to enhance user experience and analyze website performance.</p>
+
+        <h4>6. Data Protection</h4>
+        <p>We implement reasonable security measures to protect your data from unauthorized access or misuse.</p>
+      </div>
+    );
+  } else if (policyType === "contact") {
+    title = "Contact Us";
+    content = (
+      <div className="policy-content">
+        <p style={{ marginBottom: "20px" }}>Feel free to reach out to us for any queries or support regarding WAAKILI bookings.</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div>
+            <strong style={{ display: "block", fontSize: "10px", textTransform: "uppercase", letterSpacing: "1px", color: "var(--muted)", marginBottom: "4px" }}>Business Name</strong>
+            <span style={{ color: "var(--ink)", fontWeight: "500" }}>Siri Collections</span>
+          </div>
+          <div>
+            <strong style={{ display: "block", fontSize: "10px", textTransform: "uppercase", letterSpacing: "1px", color: "var(--muted)", marginBottom: "4px" }}>Phone Number</strong>
+            <a href="tel:+919059268558" style={{ color: "var(--terracotta)", textDecoration: "none", fontWeight: "500" }}>+91 90592 68558</a>
+          </div>
+          <div>
+            <strong style={{ display: "block", fontSize: "10px", textTransform: "uppercase", letterSpacing: "1px", color: "var(--muted)", marginBottom: "4px" }}>Email ID</strong>
+            <a href="mailto:rashmithasainath@gmail.com" style={{ color: "var(--terracotta)", textDecoration: "none", fontWeight: "500" }}>rashmithasainath@gmail.com</a>
+          </div>
+          <div>
+            <strong style={{ display: "block", fontSize: "10px", textTransform: "uppercase", letterSpacing: "1px", color: "var(--muted)", marginBottom: "4px" }}>Address</strong>
+            <span style={{ color: "var(--ink)" }}>Hyderabad, 500039</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="modal-scrim" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: "600px" }}>
+        <div className="modal-head">
+          <div className="modal-eyebrow">
+            <Diamond size={6} color="var(--terracotta)" />
+            <span>{title}</span>
+          </div>
+          <button className="modal-close btn-reset" onClick={onClose}>&times;</button>
+        </div>
+        <div className="modal-body" style={{ padding: "28px" }}>
+          {content}
+          <div className="modal-actions center" style={{ marginTop: "28px" }}>
+            <button className="btn-primary" onClick={onClose}>Understood</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ---------- Footer ----------
-const Footer = ({ onBook }) => (
+const Footer = ({ onBook, onOpenPolicy }) => (
   <footer className="footer" data-screen-label="05 Footer">
     <div className="footer-inner">
       <div className="footer-left">
@@ -582,11 +739,18 @@ const Footer = ({ onBook }) => (
         <div className="footer-meta">
           <a href="#about">About</a>
           <a href="#details">Details</a>
-          <a href="mailto:anti.gravityy24@gmail.com">Contact</a>
+          <button onClick={() => onOpenPolicy("contact")}>Contact</button>
         </div>
       </div>
     </div>
-    <div className="footer-fine">© 2026 Antigravityy · Hyderabad · All rights reserved</div>
+    <div className="footer-fine">
+      <div>© 2026 Antigravityy · Hyderabad · All rights reserved</div>
+      <div style={{ marginTop: "12px", display: "flex", justifyContent: "center", gap: "16px", textTransform: "none", letterSpacing: "normal" }}>
+        <button onClick={() => onOpenPolicy("terms")} style={{ background: "none", border: "none", padding: 0, font: "inherit", color: "var(--muted)", cursor: "pointer", textDecoration: "underline" }}>Terms & Conditions</button>
+        <button onClick={() => onOpenPolicy("privacy")} style={{ background: "none", border: "none", padding: 0, font: "inherit", color: "var(--muted)", cursor: "pointer", textDecoration: "underline" }}>Privacy Policy</button>
+        <button onClick={() => onOpenPolicy("refund")} style={{ background: "none", border: "none", padding: 0, font: "inherit", color: "var(--muted)", cursor: "pointer", textDecoration: "underline" }}>Refund Policy</button>
+      </div>
+    </div>
   </footer>
 );
 
@@ -595,6 +759,7 @@ const App = () => {
   const [bookOpen, setBookOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [paymentResult, setPaymentResult] = useState(null);
+  const [policyOpen, setPolicyOpen] = useState(null); // 'terms', 'privacy', 'refund', 'contact', or null
 
   // Check URL parameters for redirect confirmation on mount
   useEffect(() => {
@@ -617,8 +782,8 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    document.body.style.overflow = bookOpen ? "hidden" : "";
-  }, [bookOpen]);
+    document.body.style.overflow = (bookOpen || policyOpen) ? "hidden" : "";
+  }, [bookOpen, policyOpen]);
 
   const handleCloseModal = () => {
     setBookOpen(false);
@@ -645,12 +810,17 @@ const App = () => {
       <About />
       <Border />
       <Details onBook={() => setBookOpen(true)} />
-      <Footer onBook={() => setBookOpen(true)} />
+      <Footer onBook={() => setBookOpen(true)} onOpenPolicy={setPolicyOpen} />
 
       <BookingFlow 
         open={bookOpen} 
         onClose={handleCloseModal} 
         paymentResult={paymentResult}
+      />
+
+      <PolicyModal 
+        policyType={policyOpen} 
+        onClose={() => setPolicyOpen(null)} 
       />
     </div>
   );

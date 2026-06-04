@@ -456,7 +456,23 @@ input { font-family: inherit; }
   font-size: 13px;
   color: var(--ink-2);
 }
-.footer-meta a:hover { color: var(--terracotta); }
+.footer-meta a,
+.footer-meta button {
+  text-decoration: none;
+  font-family: var(--sans);
+  font-weight: 500;
+  color: var(--ink-2);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 13px;
+  transition: color 0.2s ease;
+}
+.footer-meta a:hover,
+.footer-meta button:hover {
+  color: var(--terracotta);
+}
 .footer-fine {
   text-align: center;
   font-size: 11px;
@@ -1068,3 +1084,40 @@ input { font-family: inherit; }
   .ticket, .ticket * { visibility: visible; }
   .ticket { position: absolute; left: 20px; top: 20px; }
 }
+
+/* Policy Content Styling */
+.policy-content {
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 8px;
+  text-align: left;
+}
+.policy-content h4 {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: 18px;
+  color: var(--terracotta);
+  margin-top: 24px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid oklch(0.92 0.02 75);
+  padding-bottom: 6px;
+}
+.policy-content h4:first-of-type {
+  margin-top: 0;
+}
+.policy-content p {
+  margin: 0 0 12px 0;
+  color: var(--ink-2);
+}
+.policy-content ul {
+  margin: 0 0 16px 0;
+  padding-left: 20px;
+  color: var(--ink-2);
+}
+.policy-content li {
+  margin-bottom: 6px;
+}
+.policy-content strong {
+  color: var(--ink);
+}
+
