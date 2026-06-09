@@ -415,13 +415,20 @@ app.post("/api/pay", async (req, res) => {
         throw new Error(responseData.message || "Failed to retrieve redirect URL.");
       }
     } catch (apiErr) {
-      console.warn(`PhonePe API Handshake failed: ${apiErr.message}. Falling back to Simulated Sandbox Mode.`);
+      console.warn(`PhonePe API Handshake failed: ${apiErr.message}.`);
       if (apiErr.response && apiErr.response.data) {
         console.warn("PhonePe API Error Details:", JSON.stringify(apiErr.response.data));
       }
-      // Return local mock checkout redirection URL instead of throwing a 500 error!
-      const redirectUrl = `${baseUrl}/api/payment-mock-checkout?txnId=${txnId}`;
-      return res.json({ success: true, redirectUrl, txnId });
+      
+      const isLocal = req.hostname === "localhost" || req.hostname === "127.0.0.1";
+      if (isLocal) {
+        console.log("Falling back to Simulated Sandbox Mode on localhost.");
+        const redirectUrl = `${baseUrl}/api/payment-mock-checkout?txnId=${txnId}`;
+        return res.json({ success: true, redirectUrl, txnId });
+      } else {
+        const errorMsg = apiErr.response && apiErr.response.data ? apiErr.response.data.message : apiErr.message;
+        return res.status(502).json({ error: `Payment initiation failed: ${errorMsg || "Gateway Unreachable"}` });
+      }
     }
   } catch (error) {
     console.error("Secure Payment Handler Error:", error.message);
