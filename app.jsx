@@ -59,7 +59,7 @@ const Opening = ({ onBook }) => {
             <span>Phoenix Arena, Hyderabad</span>
           </div>
           <button className="btn-primary" onClick={onBook}>
-            Book your seat — ₹499
+            Book your seat — ₹1
           </button>
           <a href="#about" className="scroll-hint">
             Walk in ↓
@@ -139,7 +139,7 @@ const Details = ({ onBook }) => (
         </div>
         <div className="detail">
           <div className="detail-key">Ticket</div>
-          <div className="detail-val">₹499 / person</div>
+          <div className="detail-val">₹1 / person</div>
         </div>
         <div className="detail">
           <div className="detail-key">Instagram</div>
@@ -249,7 +249,7 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
     }
   }, [open, paymentResult]);
 
-  const total = qty * 499;
+  const total = qty * 1;
   const fees = Math.round(total * 0.03);
   const grand = total + fees;
 
@@ -257,8 +257,8 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
   const canNext2 = names.every(n => n.trim() !== "") && /^\S+@\S+\.\S+$/.test(form.email) && form.phone.replace(/\D/g, "").length >= 10;
   const canPayUPI = /^\d{12}$/.test(utr.trim());
 
-  // Submit UTR to Express backend
-  const handlePayUPI = () => {
+  // Redirect to PhonePe Payment Gateway
+  const handlePayPhonePe = () => {
     setPayLoading(true);
     setPaymentError("");
 
@@ -270,29 +270,26 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
         names,
         email: form.email,
         phone: form.phone,
-        grand,
-        utr: utr.trim()
+        grand
       })
     })
     .then(res => {
       if (!res.ok) {
-        return res.json().then(data => { throw new Error(data.error || "Payment submission failed") });
+        return res.json().then(data => { throw new Error(data.error || "Payment initiation failed") });
       }
       return res.json();
     })
     .then(data => {
-      if (data.success) {
-        setTicketId(data.txnId);
-        setTicketStatus("pending_verification");
-        setStep(4);
+      if (data.success && data.redirectUrl) {
+        // Redirect the user to PhonePe PG checkout page
+        window.location.href = data.redirectUrl;
       } else {
-        throw new Error("Invalid response from server");
+        throw new Error("Invalid response from payment server");
       }
-      setPayLoading(false);
     })
     .catch(err => {
-      console.error("UPI Pay Error:", err);
-      setPaymentError(err.message || "Could not submit payment reference. Please try again.");
+      console.error("PhonePe Pay Error:", err);
+      setPaymentError(err.message || "Could not initiate payment. Please try again.");
       setPayLoading(false);
     });
   };
@@ -407,56 +404,60 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
 
           {step === 3 && (
             <div className="step-pane">
-              <h3 className="step-title">Pay ₹{grand.toLocaleString("en-IN")}</h3>
+              <h3 className="step-title">Waakili Secure Checkout</h3>
               
               {paymentError && <div className="payment-error-alert">{paymentError}</div>}
 
-              <div className="phonepe-option-pane" style={{ border: "1px solid var(--terracotta)" }}>
-                <div className="phonepe-header">
-                  <span className="phonepe-logo-text" style={{ fontFamily: "var(--serif)", fontStyle: "italic" }}>Waakili UPI QR</span>
-                  <span className="phonepe-badge">Scan & Pay</span>
+              <div className="phonepe-option-pane" style={{ border: "1px solid var(--terracotta)", padding: "24px" }}>
+                <div className="phonepe-header" style={{ marginBottom: "20px" }}>
+                  <span className="phonepe-logo-text" style={{ fontFamily: "var(--serif)", fontStyle: "italic", fontSize: "20px" }}>Order Summary</span>
+                  <span className="phonepe-badge" style={{ background: "var(--green)", color: "white" }}>Secure Gateway</span>
                 </div>
 
-                <div className="phonepe-qr-section">
-                  <div className="qr-container">
-                    <img src={qrCodeUrl} alt="UPI QR Code" />
-                    <div className="scanner-line"></div>
+                <div className="summary-list" style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%", fontSize: "14px", marginBottom: "24px", color: "var(--ink-2)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+                    <span>Waakili Ticket x{qty}</span>
+                    <span style={{ fontWeight: "600" }}>₹{total.toLocaleString("en-IN")}</span>
                   </div>
-                  <p className="phonepe-qr-text">Scan with PhonePe, Google Pay, Paytm or BHIM to pay</p>
-                  <p style={{ fontSize: "11px", color: "var(--ink-2)", margin: "4px 0 0 0" }}>UPI ID: <strong>{upiConfig.upiId}</strong></p>
-                </div>
-
-                <div className="phonepe-divider"><span>VERIFICATION</span></div>
-
-                <div className="field" style={{ width: "100%" }}>
-                  <label style={{ textAlign: "center", marginBottom: "4px" }}>Enter 12-Digit UPI Transaction ID / UTR</label>
-                  <input
-                    type="text"
-                    value={utr}
-                    onChange={(e) => setUtr(e.target.value.replace(/\D/g, "").slice(0, 12))}
-                    placeholder="e.g. 615273829102"
-                    maxLength="12"
-                    style={{
-                      textAlign: "center",
-                      fontSize: "18px",
-                      letterSpacing: "3px",
-                      fontFamily: "var(--mono)",
-                      fontWeight: "600",
-                      background: "white"
-                    }}
-                  />
-                  <div style={{ fontSize: "11px", color: "var(--muted)", fontStyle: "italic", textAlign: "center", marginTop: "4px" }}>
-                    Find the 12-digit number (UTR / Ref No) in your payment receipt screen
+                  <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+                    <span>Booking Fees (3%)</span>
+                    <span style={{ fontWeight: "600" }}>₹{fees.toLocaleString("en-IN")}</span>
+                  </div>
+                  <hr style={{ border: "none", borderTop: "1px dashed oklch(0.85 0.02 75)", margin: "4px 0" }} />
+                  <div style={{ display: "flex", justifyContent: "space-between", width: "100%", fontSize: "16px", color: "var(--ink)", fontWeight: "700" }}>
+                    <span>Total Amount</span>
+                    <span style={{ color: "var(--terracotta)" }}>₹{grand.toLocaleString("en-IN")}</span>
                   </div>
                 </div>
 
                 <button 
                   className="btn-phonepe" 
-                  onClick={handlePayUPI} 
-                  disabled={!canPayUPI || payLoading}
-                  style={{ background: "var(--ink)", borderColor: "var(--ink)", cursor: canPayUPI ? "pointer" : "not-allowed" }}
+                  onClick={handlePayPhonePe} 
+                  disabled={payLoading}
+                  style={{ 
+                    background: "oklch(0.38 0.17 300)", // PhonePe Purple
+                    borderColor: "oklch(0.38 0.17 300)", 
+                    cursor: payLoading ? "not-allowed" : "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                    width: "100%",
+                    color: "white",
+                    fontWeight: "600"
+                  }}
                 >
-                  Confirm Payment & Submit Reference
+                  {payLoading ? (
+                    "Initiating Payment..."
+                  ) : (
+                    <>
+                      <span>Pay Securely with PhonePe</span>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                        <polyline points="12 5 19 12 12 19"></polyline>
+                      </svg>
+                    </>
+                  )}
                 </button>
               </div>
 
@@ -801,7 +802,7 @@ const App = () => {
         <div className="nav-links">
           <a href="#about">About</a>
           <a href="#details">Details</a>
-          <button className="btn-primary small" onClick={() => setBookOpen(true)}>Book ₹499</button>
+          <button className="btn-primary small" onClick={() => setBookOpen(true)}>Book ₹1</button>
         </div>
       </nav>
 
