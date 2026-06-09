@@ -17,10 +17,10 @@ if (process.env.BREVO_API_KEY) {
 }
 
 // Initialize PhonePe Gateway client logger
-if (process.env.PHONEPE_MERCHANT_ID && process.env.PHONEPE_SALT_KEY) {
-  const mid = process.env.PHONEPE_MERCHANT_ID;
-  const key = process.env.PHONEPE_SALT_KEY;
-  console.log(`💳 PhonePe Gateway initialized. MID: ${mid.slice(0, 4)}... | Salt Key: ${key.slice(0, 4)}... | URL: ${process.env.PHONEPE_API_URL || "default"}`);
+if (process.env.PHONEPE_CLIENT_ID && process.env.PHONEPE_SALT_KEY) {
+  const cid = process.env.PHONEPE_CLIENT_ID;
+  const mid = process.env.PHONEPE_MERCHANT_ID || "N/A";
+  console.log(`💳 PhonePe Gateway V2 initialized. Client ID: ${cid.slice(0, 6)}... | MID: ${mid}`);
 } else {
   console.log("⚠️ PhonePe Gateway credentials missing in environment. Sandbox Simulator will be active on localhost, requests will fail on production.");
 }
@@ -63,19 +63,34 @@ async function sendEmailViaBrevo(to, subject, text, bcc = null) {
   }
 }
 
-// Helper: Calculate PhonePe Pay API Checksum
-function calculateChecksum(payloadBase64, endpoint, saltKey, saltIndex) {
-  const data = payloadBase64 + endpoint + saltKey;
-  const hash = crypto.createHash("sha256").update(data).digest("hex");
-  return `${hash}###${saltIndex}`;
-}
+let cachedToken = null;
+let tokenExpiry = 0;
 
-// Helper: Calculate PhonePe Status API Checksum
-function calculateStatusChecksum(merchantId, transactionId, saltKey, saltIndex) {
-  const endpoint = `/pg/v1/status/${merchantId}/${transactionId}`;
-  const data = endpoint + saltKey;
-  const hash = crypto.createHash("sha256").update(data).digest("hex");
-  return `${hash}###${saltIndex}`;
+// Helper: Get PhonePe V2 OAuth Access Token (with cache optimization)
+async function getOAuthToken() {
+  const now = Date.now();
+  if (cachedToken && tokenExpiry > now + 300000) { // 5 minutes safety buffer
+    return cachedToken;
+  }
+
+  const clientId = (process.env.PHONEPE_CLIENT_ID || "SU2606051813086277709374").trim();
+  const clientSecret = (process.env.PHONEPE_SALT_KEY || "b470db2d-2548-4fda-8f2e-89314516253b").trim();
+  const clientVersion = 1;
+  const identityUrl = (process.env.PHONEPE_IDENTITY_URL || "https://api.phonepe.com/apis/identity-manager/v1/oauth/token").trim();
+
+  const params = new URLSearchParams();
+  params.append("client_id", clientId);
+  params.append("client_secret", clientSecret);
+  params.append("client_version", String(clientVersion));
+  params.append("grant_type", "client_credentials");
+
+  const response = await axios.post(identityUrl, params, {
+    headers: { "Content-Type": "application/x-www-form-urlencoded" }
+  });
+
+  cachedToken = response.data.access_token;
+  tokenExpiry = Date.now() + (response.data.expires_in * 1000);
+  return cachedToken;
 }
 
 
@@ -372,56 +387,37 @@ app.post("/api/pay", async (req, res) => {
       localBookings[txnId] = bookingRecord;
     }
 
-    // PhonePe Gateway Integration Request Payload
-    const merchantId = process.env.PHONEPE_MERCHANT_ID || "M22FROG5F4U5K";
-    const saltKey = process.env.PHONEPE_SALT_KEY || "b470db2d-2548-4fda-8f2e-89314516253b";
-    const saltIndex = process.env.PHONEPE_SALT_INDEX || "1";
-    const clientId = process.env.PHONEPE_CLIENT_ID || "SU2606051813086277709374";
-    const apiUrl = process.env.PHONEPE_API_URL || "https://api.phonepe.com/apis/hermes";
-
-    const phonepePayload = {
-      merchantId: merchantId,
-      merchantTransactionId: txnId,
-      merchantUserId: "MUID" + cleanPhone,
-      amount: computedGrand * 100, // PhonePe expects amount in paise
-      redirectUrl: `${baseUrl}/api/payment-response?txnId=${txnId}`,
-      redirectMode: "POST",
-      callbackUrl: `${baseUrl}/api/payment-callback?txnId=${txnId}`,
-      mobileNumber: cleanPhone,
-      paymentInstrument: {
-        type: "PAY_PAGE"
-      }
-    };
-
-    const payloadString = JSON.stringify(phonepePayload);
-    const payloadBase64 = Buffer.from(payloadString).toString("base64");
-    const endpoint = "/pg/v1/pay";
-    const checksum = calculateChecksum(payloadBase64, endpoint, saltKey, saltIndex);
-
-    console.log(`Initiating PhonePe payment request for txnId: ${txnId}, amount: ${computedGrand} INR`);
-
-    const headers = {
-      "Content-Type": "application/json",
-      "X-VERIFY": checksum
-    };
-    if (clientId) {
-      headers["X-CLIENT-ID"] = clientId;
-    }
-
     let responseData;
     try {
-      const response = await axios.post(`${apiUrl}${endpoint}`, {
-        request: payloadBase64
-      }, { headers });
+      console.log(`Initiating PhonePe V2 payment request for txnId: ${txnId}, amount: ${computedGrand} INR`);
+      const token = await getOAuthToken();
+      
+      const v2PayUrl = (process.env.PHONEPE_V2_API_URL || "https://api.phonepe.com/apis/pg/checkout/v2/pay").trim();
+      const v2Payload = {
+        merchantOrderId: txnId,
+        amount: computedGrand * 100, // paise
+        expireAfter: 1200,
+        paymentFlow: {
+          type: "PG_CHECKOUT",
+          merchantUrls: {
+            redirectUrl: `${baseUrl}/api/payment-response?txnId=${txnId}`
+          }
+        }
+      };
 
+      const headers = {
+        "Content-Type": "application/json",
+        "Authorization": `O-Bearer ${token}`
+      };
+
+      const response = await axios.post(v2PayUrl, v2Payload, { headers });
       responseData = response.data;
-      console.log(`PhonePe Gateway response for ${txnId}:`, JSON.stringify(responseData));
+      console.log(`PhonePe Gateway V2 response for ${txnId}:`, JSON.stringify(responseData));
 
-      if (responseData.success && responseData.data.instrumentResponse.redirectInfo.url) {
-        const redirectUrl = responseData.data.instrumentResponse.redirectInfo.url;
-        return res.json({ success: true, redirectUrl, txnId });
+      if (responseData.redirectUrl) {
+        return res.json({ success: true, redirectUrl: responseData.redirectUrl, txnId });
       } else {
-        throw new Error(responseData.message || "Failed to retrieve redirect URL.");
+        throw new Error("Failed to retrieve redirect URL from V2 API.");
       }
     } catch (apiErr) {
       console.warn(`PhonePe API Handshake failed: ${apiErr.message}.`);
@@ -558,37 +554,29 @@ app.all("/api/payment-response", async (req, res) => {
       }
     }
 
-    // Call PhonePe Check Status API to verify payment status
-    const merchantId = process.env.PHONEPE_MERCHANT_ID || "M22FROG5F4U5K";
-    const saltKey = process.env.PHONEPE_SALT_KEY || "b470db2d-2548-4fda-8f2e-89314516253b";
-    const saltIndex = process.env.PHONEPE_SALT_INDEX || "1";
-    const clientId = process.env.PHONEPE_CLIENT_ID || "SU2606051813086277709374";
-    const apiUrl = process.env.PHONEPE_API_URL || "https://api.phonepe.com/apis/hermes";
-
-    const statusEndpoint = `/pg/v1/status/${merchantId}/${txnId}`;
-    const checksum = calculateStatusChecksum(merchantId, txnId, saltKey, saltIndex);
-
-    const headers = {
-      "Content-Type": "application/json",
-      "X-VERIFY": checksum
-    };
-    if (clientId) {
-      headers["X-CLIENT-ID"] = clientId;
-    }
-
-    console.log(`Checking PhonePe transaction status for: ${txnId}`);
+    console.log(`Checking PhonePe V2 transaction status for: ${txnId}`);
     
     let responseData;
     try {
-      const statusResponse = await axios.get(`${apiUrl}${statusEndpoint}`, { headers });
+      const token = await getOAuthToken();
+      const statusUrl = process.env.PHONEPE_V2_STATUS_URL 
+        ? process.env.PHONEPE_V2_STATUS_URL.replace("{txnId}", txnId)
+        : `https://api.phonepe.com/apis/pg/checkout/v2/order/${txnId}/status`;
+
+      const headers = {
+        "Content-Type": "application/json",
+        "Authorization": `O-Bearer ${token}`
+      };
+
+      const statusResponse = await axios.get(statusUrl, { headers });
       responseData = statusResponse.data;
-      console.log(`PhonePe Check Status Response for ${txnId}:`, JSON.stringify(responseData));
+      console.log(`PhonePe V2 Check Status Response for ${txnId}:`, JSON.stringify(responseData));
     } catch (apiErr) {
-      console.warn(`PhonePe Status API call failed: ${apiErr.message}. Falling back to sandbox checkout simulator.`);
+      console.warn(`PhonePe V2 Status API call failed: ${apiErr.message}. Falling back to sandbox checkout simulator.`);
       return res.redirect(`${baseUrl}/api/payment-mock-checkout?txnId=${txnId}`);
     }
 
-    if (responseData.success && responseData.code === "PAYMENT_SUCCESS") {
+    if (responseData && responseData.state === "COMPLETED") {
       // Payment succeeded! Update status in database
       booking.status = "success";
       if (supabase) {
@@ -603,7 +591,7 @@ app.all("/api/payment-response", async (req, res) => {
       });
 
       return res.redirect(`${baseUrl}/?status=success&txnId=${txnId}`);
-    } else if (responseData.code === "PAYMENT_PENDING") {
+    } else if (responseData && responseData.state === "PENDING") {
       // Still pending / verifying
       return res.redirect(`${baseUrl}/?status=pending_verification&txnId=${txnId}`);
     } else {
@@ -630,30 +618,16 @@ app.all("/api/payment-response", async (req, res) => {
 // API: Handle PhonePe Server-to-Server Callback (Webhook)
 app.post("/api/payment-callback", async (req, res) => {
   try {
-    const { response } = req.body;
-    if (!response) {
-      return res.status(400).json({ error: "Missing callback payload response." });
-    }
-
-    // Decode PhonePe base64 payload
-    const decodedPayload = Buffer.from(response, "base64").toString("utf8");
-    const payloadJson = JSON.parse(decodedPayload);
-
-    console.log("PhonePe Webhook callback payload parsed:", payloadJson);
-
-    const txnId = payloadJson.data.merchantTransactionId;
-    const success = payloadJson.success;
-    const code = payloadJson.code;
-
-    // Verify Callback Signature to secure the webhook
-    const receivedVerify = req.headers["x-verify"];
-    const saltKey = process.env.PHONEPE_SALT_KEY || "b470db2d-2548-4fda-8f2e-89314516253b";
-    const saltIndex = process.env.PHONEPE_SALT_INDEX || "1";
-
-    const calculatedVerify = crypto.createHash("sha256").update(response + saltKey).digest("hex") + "###" + saltIndex;
+    console.log("PhonePe Webhook callback received:", JSON.stringify(req.body));
     
-    if (receivedVerify && receivedVerify !== calculatedVerify) {
-      console.warn("⚠️ PhonePe callback signature validation failed!");
+    // Parse transaction details depending on V2 webhook format
+    // V2 format has event type and payload: { type: "...", payload: { merchantOrderId: "...", state: "..." } }
+    const txnId = req.body.payload ? req.body.payload.merchantOrderId : null;
+    const state = req.body.payload ? req.body.payload.state : null;
+
+    if (!txnId) {
+      console.error("No merchantOrderId found in webhook callback body.");
+      return res.status(400).json({ error: "Missing transaction identifier in payload." });
     }
 
     // Retrieve booking details
@@ -684,7 +658,26 @@ app.post("/api/payment-callback", async (req, res) => {
       return res.json({ success: true });
     }
 
-    if (success && code === "PAYMENT_SUCCESS") {
+    // SECURE backend check status validation: Query direct API to confirm status before performing database state changes.
+    console.log(`Webhook received for txnId: ${txnId}. Querying PhonePe V2 Status API for confirmation.`);
+    let verifiedState = state;
+    try {
+      const token = await getOAuthToken();
+      const statusResponse = await axios.get(`https://api.phonepe.com/apis/pg/checkout/v2/order/${txnId}/status`, {
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `O-Bearer ${token}`
+        }
+      });
+      verifiedState = statusResponse.data.state;
+      console.log(`PhonePe Status API verified state for webhook callback: ${verifiedState}`);
+    } catch (statusErr) {
+      console.error(`Failed to verify webhook status with PhonePe Status API: ${statusErr.message}`);
+      // If status API call fails, we rely on the state sent in webhook but flag a warning
+      console.warn(`Falling back to status payload state: ${state}`);
+    }
+
+    if (verifiedState === "COMPLETED") {
       // Payment succeeded! Update status
       booking.status = "success";
       if (supabase) {
@@ -697,7 +690,7 @@ app.post("/api/payment-callback", async (req, res) => {
       sendEmailConfirmation(booking, txnId).catch(err => {
         console.error("❌ Background Error sending confirmation email in webhook:", err.message);
       });
-    } else if (code !== "PAYMENT_PENDING") {
+    } else if (verifiedState === "FAILED") {
       // Payment failed
       booking.status = "failed";
       if (supabase) {
