@@ -16,6 +16,15 @@ if (process.env.BREVO_API_KEY) {
   console.log("⚠️ BREVO_API_KEY missing in environment. Email dispatches will be simulated in terminal logs only.");
 }
 
+// Initialize PhonePe Gateway client logger
+if (process.env.PHONEPE_MERCHANT_ID && process.env.PHONEPE_SALT_KEY) {
+  const mid = process.env.PHONEPE_MERCHANT_ID;
+  const key = process.env.PHONEPE_SALT_KEY;
+  console.log(`💳 PhonePe Gateway initialized. MID: ${mid.slice(0, 4)}... | Salt Key: ${key.slice(0, 4)}... | URL: ${process.env.PHONEPE_API_URL || "default"}`);
+} else {
+  console.log("⚠️ PhonePe Gateway credentials missing in environment. Sandbox Simulator will be active on localhost, requests will fail on production.");
+}
+
 // Helper: Send email via Brevo HTTP API
 async function sendEmailViaBrevo(to, subject, text, bcc = null) {
   const apiKey = process.env.BREVO_API_KEY;
@@ -426,8 +435,10 @@ app.post("/api/pay", async (req, res) => {
         const redirectUrl = `${baseUrl}/api/payment-mock-checkout?txnId=${txnId}`;
         return res.json({ success: true, redirectUrl, txnId });
       } else {
-        const errorMsg = apiErr.response && apiErr.response.data ? apiErr.response.data.message : apiErr.message;
-        return res.status(502).json({ error: `Payment initiation failed: ${errorMsg || "Gateway Unreachable"}` });
+        const errorMsg = apiErr.response && apiErr.response.data 
+          ? (apiErr.response.data.message || `PhonePe Code ${apiErr.response.data.code || apiErr.response.status}`)
+          : apiErr.message;
+        return res.status(502).json({ error: `Payment initiation failed: ${errorMsg}` });
       }
     }
   } catch (error) {
