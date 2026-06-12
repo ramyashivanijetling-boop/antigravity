@@ -103,11 +103,16 @@ app.use((req, res, next) => {
   next();
 });
 
-// Configure Restricted CORS
 const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5000}`;
 app.use(
   cors({
-    origin: [baseUrl],
+    origin: (origin, callback) => {
+      if (!origin || origin === baseUrl || origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1") || origin.includes("192.168.") || origin.includes("10.") || origin.includes("172.")) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type", "X-Admin-Passcode"],
   })
@@ -231,10 +236,40 @@ An evening to walk into.
   await sendEmailViaBrevo(booking.email, emailSubject, emailBody);
 }
 
+// Helper: Parse add-ons from UTR string
+function parseAddonsFromUtr(utr) {
+  let pottery = 0, cheriyal = 0, bangles = 0, combo = 0;
+  if (utr && utr.includes('|')) {
+    const [_, addonsPart] = utr.split('|');
+    const pairs = addonsPart.split(';');
+    pairs.forEach(pair => {
+      const [key, val] = pair.split(':');
+      if (key === 'pottery') pottery = parseInt(val) || 0;
+      if (key === 'cheriyal') cheriyal = parseInt(val) || 0;
+      if (key === 'bangles') bangles = parseInt(val) || 0;
+      if (key === 'combo') combo = parseInt(val) || 0;
+    });
+  }
+  return { pottery, cheriyal, bangles, combo };
+}
+
+// Helper: Format add-ons for printing/email
+function formatAddonsList(utr) {
+  const { pottery, cheriyal, bangles, combo } = parseAddonsFromUtr(utr);
+  const items = [];
+  if (pottery > 0) items.push(`Pottery Workshop x${pottery} (₹199/ea)`);
+  if (cheriyal > 0) items.push(`Cheriyal Arts Workshop x${cheriyal} (₹249/ea)`);
+  if (bangles > 0) items.push(`Lac Bangles Workshop x${bangles} (₹199/ea)`);
+  if (combo > 0) items.push(`3-Workshops Combo Pack x${combo} (₹499/ea)`);
+  return items.length > 0 ? items.join(", ") : "None";
+}
+
 // Helper: Send Ticket Confirmation Email
 async function sendEmailConfirmation(booking, txnId) {
   const guestList = booking.names.map((n, i) => `Guest ${i + 1}: ${n}`).join("\n");
   const emailSubject = `🎟️ WAAKILI Ticket Confirmed — ${txnId}`;
+  const addonsStr = booking.utr && booking.utr.includes('|') ? formatAddonsList(booking.utr) : "None";
+
   const emailBody = `
 Namaskar,
 
@@ -249,6 +284,7 @@ Date: 28 June 2026
 Time: 4:00 PM — 9:00 PM
 Venue: Phoenix Arena, Hyderabad
 Amount Paid: ₹${booking.grand}
+Add-ons: ${addonsStr}
 
 ATTENDEES:
 ${guestList}
@@ -316,7 +352,7 @@ app.get("/api/payment-config", (req, res) => {
 // API: Submit Booking and Initiate PhonePe Gateway Payment
 app.post("/api/pay", async (req, res) => {
   try {
-    const { qty, names, email, phone, grand } = req.body;
+    const { qty, names, email, phone, grand, addons } = req.body;
 
     // 1. Structural Validation
     if (!qty || !names || !email || !phone || !grand) {
@@ -343,11 +379,19 @@ app.post("/api/pay", async (req, res) => {
       return res.status(400).json({ error: "Invalid phone number." });
     }
 
+    // Parse Addons
+    const potteryQty = addons && typeof addons.pottery === 'number' ? Math.max(0, parseInt(addons.pottery)) : 0;
+    const cheriyalQty = addons && typeof addons.cheriyal === 'number' ? Math.max(0, parseInt(addons.cheriyal)) : 0;
+    const banglesQty = addons && typeof addons.bangles === 'number' ? Math.max(0, parseInt(addons.bangles)) : 0;
+    const comboQty = addons && typeof addons.combo === 'number' ? Math.max(0, parseInt(addons.combo)) : 0;
+
     // 3. SECURE PRICING AUDIT: Recalculate price on the backend
-    const pricePerPerson = 1;
-    const computedTotal = cleanQty * pricePerPerson;
-    const computedFees = Math.round(computedTotal * 0.03);
-    const computedGrand = computedTotal + computedFees;
+    const pricePerPerson = 499;
+    const ticketsTotal = cleanQty * pricePerPerson;
+    const addonsTotal = (potteryQty * 199) + (cheriyalQty * 249) + (banglesQty * 199) + (comboQty * 499);
+    const gstTotal = Math.round(addonsTotal * 0.18);
+    const computedFees = Math.round((ticketsTotal + addonsTotal + gstTotal) * 0.03);
+    const computedGrand = ticketsTotal + addonsTotal + gstTotal + computedFees;
 
     if (parseInt(grand) !== computedGrand) {
       return res.status(400).json({ error: "Financial parameter mismatch. Booking aborted." });
@@ -356,13 +400,17 @@ app.post("/api/pay", async (req, res) => {
     // Unique Order Transaction ID
     const txnId = "WKL-" + Math.random().toString(36).slice(2, 6).toUpperCase() + "-" + Math.floor(Math.random() * 9000 + 1000);
 
+    // Save addons description inside UTR column
+    const addonsStr = `pottery:${potteryQty};cheriyal:${cheriyalQty};bangles:${banglesQty};combo:${comboQty}`;
+    const utrValue = addonsTotal > 0 ? `PhonePe|${addonsStr}` : "PhonePe";
+
     const bookingRecord = {
       qty: cleanQty,
       names,
       email,
       phone: cleanPhone,
       grand: computedGrand,
-      utr: "PhonePe",
+      utr: utrValue,
       status: "payment_initiated",
       createdAt: new Date(),
     };
@@ -376,7 +424,7 @@ app.post("/api/pay", async (req, res) => {
         email,
         phone: cleanPhone,
         grand: computedGrand,
-        utr: "PhonePe",
+        utr: utrValue,
         status: "payment_initiated"
       }]);
       if (error) {
@@ -400,7 +448,7 @@ app.post("/api/pay", async (req, res) => {
         paymentFlow: {
           type: "PG_CHECKOUT",
           merchantUrls: {
-            redirectUrl: `${baseUrl}/api/payment-response?txnId=${txnId}`
+            redirectUrl: `${req.protocol}://${req.get("host")}/api/payment-response?txnId=${txnId}`
           }
         }
       };
@@ -425,10 +473,10 @@ app.post("/api/pay", async (req, res) => {
         console.warn("PhonePe API Error Details:", JSON.stringify(apiErr.response.data));
       }
       
-      const isLocal = req.hostname === "localhost" || req.hostname === "127.0.0.1";
+      const isLocal = req.hostname === "localhost" || req.hostname === "127.0.0.1" || req.hostname.startsWith("192.168.") || req.hostname.startsWith("10.") || req.hostname.startsWith("172.");
       if (isLocal) {
         console.log("Falling back to Simulated Sandbox Mode on localhost.");
-        const redirectUrl = `${baseUrl}/api/payment-mock-checkout?txnId=${txnId}`;
+        const redirectUrl = `${req.protocol}://${req.get("host")}/api/payment-mock-checkout?txnId=${txnId}`;
         return res.json({ success: true, redirectUrl, txnId });
       } else {
         const errorMsg = apiErr.response && apiErr.response.data 
@@ -482,13 +530,14 @@ app.get("/api/booking-details/:txnId", async (req, res) => {
 
 // API: Handle PhonePe Payment Gateway Redirection (GET/POST)
 app.all("/api/payment-response", async (req, res) => {
+  const currentBaseUrl = `${req.protocol}://${req.get("host")}`;
   try {
     const txnId = req.query.txnId || req.body.merchantTransactionId;
     const mockStatus = req.query.status; // Optional parameter passed by our mock page
     
     if (!txnId) {
       console.error("No txnId in redirect parameters.");
-      return res.redirect(`${baseUrl}/?status=failed`);
+      return res.redirect(`${currentBaseUrl}/?status=failed`);
     }
 
     // Retrieve booking details to verify it exists
@@ -497,7 +546,7 @@ app.all("/api/payment-response", async (req, res) => {
       const { data, error } = await supabase.from("bookings").select("*").eq("txn_id", txnId).single();
       if (error || !data) {
         console.error(`Booking not found in Supabase for txnId: ${txnId}`);
-        return res.redirect(`${baseUrl}/?status=failed`);
+        return res.redirect(`${currentBaseUrl}/?status=failed`);
       }
       booking = {
         qty: data.qty,
@@ -505,24 +554,25 @@ app.all("/api/payment-response", async (req, res) => {
         email: data.email,
         phone: data.phone,
         grand: data.grand,
-        status: data.status
+        status: data.status,
+        utr: data.utr
       };
     } else {
       booking = localBookings[txnId];
       if (!booking) {
         console.error(`Booking not found in local memory for txnId: ${txnId}`);
-        return res.redirect(`${baseUrl}/?status=failed`);
+        return res.redirect(`${currentBaseUrl}/?status=failed`);
       }
     }
 
     // If already marked success, just redirect to success page
     if (booking.status === "success") {
-      return res.redirect(`${baseUrl}/?status=success&txnId=${txnId}`);
+      return res.redirect(`${currentBaseUrl}/?status=success&txnId=${txnId}`);
     }
 
     // Handle mock simulation status if specified
     if (mockStatus) {
-      const isLocal = req.hostname === "localhost" || req.hostname === "127.0.0.1";
+      const isLocal = req.hostname === "localhost" || req.hostname === "127.0.0.1" || req.hostname.startsWith("192.168.") || req.hostname.startsWith("10.") || req.hostname.startsWith("172.");
       if (!isLocal) {
         console.warn(`⚠️ Warning: Blocked mock payment status attempt in production for txnId: ${txnId} from hostname: ${req.hostname}`);
         // Fall through to real PhonePe status check! Do NOT return simulated success.
@@ -541,7 +591,7 @@ app.all("/api/payment-response", async (req, res) => {
             console.error("❌ Background Error sending confirmation email:", err.message);
           });
           
-          return res.redirect(`${baseUrl}/?status=success&txnId=${txnId}`);
+          return res.redirect(`${currentBaseUrl}/?status=success&txnId=${txnId}`);
         } else {
           booking.status = "failed";
           if (supabase) {
@@ -549,7 +599,7 @@ app.all("/api/payment-response", async (req, res) => {
           } else {
             localBookings[txnId].status = "failed";
           }
-          return res.redirect(`${baseUrl}/?status=failed&txnId=${txnId}`);
+          return res.redirect(`${currentBaseUrl}/?status=failed&txnId=${txnId}`);
         }
       }
     }
@@ -573,7 +623,7 @@ app.all("/api/payment-response", async (req, res) => {
       console.log(`PhonePe V2 Check Status Response for ${txnId}:`, JSON.stringify(responseData));
     } catch (apiErr) {
       console.warn(`PhonePe V2 Status API call failed: ${apiErr.message}. Falling back to sandbox checkout simulator.`);
-      return res.redirect(`${baseUrl}/api/payment-mock-checkout?txnId=${txnId}`);
+      return res.redirect(`${currentBaseUrl}/api/payment-mock-checkout?txnId=${txnId}`);
     }
 
     if (responseData && responseData.state === "COMPLETED") {
@@ -590,10 +640,10 @@ app.all("/api/payment-response", async (req, res) => {
         console.error("❌ Background Error sending confirmation email:", err.message);
       });
 
-      return res.redirect(`${baseUrl}/?status=success&txnId=${txnId}`);
+      return res.redirect(`${currentBaseUrl}/?status=success&txnId=${txnId}`);
     } else if (responseData && responseData.state === "PENDING") {
       // Still pending / verifying
-      return res.redirect(`${baseUrl}/?status=pending_verification&txnId=${txnId}`);
+      return res.redirect(`${currentBaseUrl}/?status=pending_verification&txnId=${txnId}`);
     } else {
       // Payment failed / declined
       booking.status = "failed";
@@ -603,13 +653,14 @@ app.all("/api/payment-response", async (req, res) => {
         localBookings[txnId].status = "failed";
       }
 
-      return res.redirect(`${baseUrl}/?status=failed&txnId=${txnId}`);
+      return res.redirect(`${currentBaseUrl}/?status=failed&txnId=${txnId}`);
     }
   } catch (error) {
     console.error("Error handling payment redirect response:", error.message);
     const txnId = req.query.txnId || req.body.merchantTransactionId;
     if (txnId) {
-      return res.redirect(`${baseUrl}/?status=failed&txnId=${txnId}`);
+      return res.redirect(`${currentBaseUrl}/?status=failed&txnId=${txnId}`);
+
     }
     return res.redirect(`${baseUrl}/?status=failed`);
   }
@@ -641,7 +692,8 @@ app.post("/api/payment-callback", async (req, res) => {
           email: data.email,
           phone: data.phone,
           grand: data.grand,
-          status: data.status
+          status: data.status,
+          utr: data.utr
         };
       }
     } else {
@@ -709,7 +761,7 @@ app.post("/api/payment-callback", async (req, res) => {
 
 // API: Render PhonePe Mock Sandbox Checkout Page (for local testing / API failure fallback)
 app.get("/api/payment-mock-checkout", async (req, res) => {
-  const isLocal = req.hostname === "localhost" || req.hostname === "127.0.0.1";
+  const isLocal = req.hostname === "localhost" || req.hostname === "127.0.0.1" || req.hostname.startsWith("192.168.") || req.hostname.startsWith("10.") || req.hostname.startsWith("172.");
   if (!isLocal) {
     console.warn(`⚠️ Warning: Blocked access to mock checkout simulator page in production from hostname: ${req.hostname}`);
     return res.status(403).send("Forbidden. Sandbox simulator is only available on localhost.");

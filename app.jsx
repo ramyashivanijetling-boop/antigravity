@@ -59,7 +59,7 @@ const Opening = ({ onBook }) => {
             <span>Phoenix Arena, Hyderabad</span>
           </div>
           <button className="btn-primary" onClick={onBook}>
-            Book your seat — ₹1
+            Book your seat — ₹499
           </button>
           <a href="#about" className="scroll-hint">
             Walk in ↓
@@ -139,7 +139,7 @@ const Details = ({ onBook }) => (
         </div>
         <div className="detail">
           <div className="detail-key">Ticket</div>
-          <div className="detail-val">₹1 / person</div>
+          <div className="detail-val">₹499 / person</div>
         </div>
         <div className="detail">
           <div className="detail-key">Instagram</div>
@@ -175,6 +175,11 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
   const [payLoading, setPayLoading] = useState(false);
   const [paymentError, setPaymentError] = useState("");
 
+  // Addons states
+  const [potteryQty, setPotteryQty] = useState(0);
+  const [cheriyalQty, setCheriyalQty] = useState(0);
+  const [banglesQty, setBanglesQty] = useState(0);
+  const [comboQty, setComboQty] = useState(0);
 
   // Adjust guest names length to match ticket quantity
   useEffect(() => {
@@ -221,10 +226,29 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
             setUtr(data.utr || "");
             setTicketStatus(data.status);
 
-            if (paymentResult.status === "success" || data.status === "pending_verification") {
-              setStep(4);
+            // Parse addons from UTR if present
+            if (data.utr && data.utr.includes('|')) {
+              const [_, addonsPart] = data.utr.split('|');
+              const pairs = addonsPart.split(';');
+              pairs.forEach(pair => {
+                const [key, val] = pair.split(':');
+                const v = parseInt(val) || 0;
+                if (key === 'pottery') setPotteryQty(v);
+                if (key === 'cheriyal') setCheriyalQty(v);
+                if (key === 'bangles') setBanglesQty(v);
+                if (key === 'combo') setComboQty(v);
+              });
             } else {
-              setStep(3);
+              setPotteryQty(0);
+              setCheriyalQty(0);
+              setBanglesQty(0);
+              setComboQty(0);
+            }
+
+            if (paymentResult.status === "success" || data.status === "pending_verification") {
+              setStep(5);
+            } else {
+              setStep(4);
               setPaymentError("Verification failed or transaction declined. Please try again.");
             }
             setPayLoading(false);
@@ -232,7 +256,7 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
           .catch(err => {
             console.error("Error loading booking details:", err);
             setPaymentError("Failed to fetch transaction status from server.");
-            setStep(3);
+            setStep(4);
             setPayLoading(false);
           });
       } else {
@@ -245,13 +269,24 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
         setTicketStatus("pending_verification");
         setPaymentError("");
         setPayLoading(false);
+        setPotteryQty(0);
+        setCheriyalQty(0);
+        setBanglesQty(0);
+        setComboQty(0);
       }
     }
   }, [open, paymentResult]);
 
-  const total = qty * 1;
-  const fees = Math.round(total * 0.03);
-  const grand = total + fees;
+  const step1Total = qty * 499;
+  const step1Fees = Math.round(step1Total * 0.03);
+  const step1Grand = step1Total + step1Fees;
+
+  const ticketsTotal = qty * 499;
+  const addonsTotal = (potteryQty * 199) + (cheriyalQty * 249) + (banglesQty * 199) + (comboQty * 499);
+  const gstTotal = Math.round(addonsTotal * 0.18);
+  const total = ticketsTotal; // keeps backward-compatibility
+  const fees = Math.round((ticketsTotal + addonsTotal + gstTotal) * 0.03);
+  const grand = ticketsTotal + addonsTotal + gstTotal + fees;
 
   const canNext1 = qty >= 1 && qty <= 8;
   const canNext2 = names.every(n => n.trim() !== "") && /^\S+@\S+\.\S+$/.test(form.email) && form.phone.replace(/\D/g, "").length >= 10;
@@ -270,7 +305,13 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
         names,
         email: form.email,
         phone: form.phone,
-        grand
+        grand,
+        addons: {
+          pottery: potteryQty,
+          cheriyal: cheriyalQty,
+          bangles: banglesQty,
+          combo: comboQty
+        }
       })
     })
     .then(res => {
@@ -312,7 +353,7 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
 
         {/* Stepper */}
         <div className="stepper">
-          {["Tickets", "Guest", "Payment", "Confirmed"].map((label, i) => (
+          {["Tickets", "Guest", "Add-ons", "Payment", "Confirmed"].map((label, i) => (
             <div key={label} className={`step ${step === i + 1 ? "active" : ""} ${step > i + 1 ? "done" : ""}`}>
               <div className="step-num">{i + 1}</div>
               <div className="step-label">{label}</div>
@@ -339,9 +380,9 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
               <div className="qty-hint">Maximum 8 per booking. Children below 5 enter free.</div>
 
               <div className="summary">
-                <div className="sum-row"><span>{qty} × General Entry</span><span>₹{total.toLocaleString("en-IN")}</span></div>
-                <div className="sum-row muted"><span>Booking fee (3%)</span><span>₹{fees.toLocaleString("en-IN")}</span></div>
-                <div className="sum-row total"><span>Total</span><span>₹{grand.toLocaleString("en-IN")}</span></div>
+                <div className="sum-row"><span>{qty} × General Entry</span><span>₹{step1Total.toLocaleString("en-IN")}</span></div>
+                <div className="sum-row muted"><span>Booking fee (3%)</span><span>₹{step1Fees.toLocaleString("en-IN")}</span></div>
+                <div className="sum-row total"><span>Total</span><span>₹{step1Grand.toLocaleString("en-IN")}</span></div>
               </div>
 
               <div className="modal-actions">
@@ -396,13 +437,260 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
               <div className="modal-actions">
                 <button className="btn-ghost" onClick={() => setStep(1)}>← Back</button>
                 <button className="btn-primary" disabled={!canNext2} onClick={() => setStep(3)}>
-                  To payment →
+                  Continue →
                 </button>
               </div>
             </div>
           )}
 
           {step === 3 && (
+            <div className="step-pane">
+              <h3 className="step-title">Enhance your experience (Optional)</h3>
+              <p className="step-subtitle" style={{ fontSize: "13px", color: "var(--muted)", marginBottom: "20px", marginTop: "-12px" }}>
+                Participate in live cultural workshops and take home your creations. Tax will be calculated at checkout.
+              </p>
+              
+              <div className="addons-scroll" style={{ display: "flex", flexDirection: "column", gap: "12px", maxHeight: "360px", overflowY: "auto", paddingRight: "4px" }}>
+                
+                {/* Pottery */}
+                <div className="addon-card" style={{ border: "1px solid oklch(0.82 0.02 75)", borderRadius: "6px", padding: "12px 16px", background: "var(--paper)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ paddingRight: "12px", textAlign: "left" }}>
+                    <h4 style={{ margin: "0 0 2px 0", color: "var(--ink)", fontFamily: "var(--serif)", fontSize: "17px", fontWeight: "600" }}>Pottery Workshop</h4>
+                    <p style={{ margin: "0 0 4px 0", fontSize: "12px", color: "var(--muted)", lineHeight: "1.3" }}>Includes a takeaway of one clay piece you make yourself.</p>
+                    <span style={{ fontSize: "14px", fontWeight: "700", color: "var(--terracotta)", display: "inline-block" }}>₹199 / guest</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <button 
+                      onClick={() => setPotteryQty(Math.max(0, potteryQty - 1))} 
+                      style={{ 
+                        width: "28px", 
+                        height: "28px", 
+                        borderRadius: "50%", 
+                        border: "1px solid var(--ink)", 
+                        background: "var(--paper)", 
+                        color: "var(--ink)", 
+                        fontSize: "14px", 
+                        fontWeight: "bold",
+                        display: "flex", 
+                        alignItems: "center", 
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease"
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--ink)"; e.currentTarget.style.color = "var(--cream)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "var(--paper)"; e.currentTarget.style.color = "var(--ink)"; }}
+                    >
+                      −
+                    </button>
+                    <div style={{ fontSize: "15px", fontWeight: "600", color: "var(--ink)", minWidth: "18px", textAlign: "center" }}>{potteryQty}</div>
+                    <button 
+                      onClick={() => setPotteryQty(Math.min(qty, potteryQty + 1))} 
+                      style={{ 
+                        width: "28px", 
+                        height: "28px", 
+                        borderRadius: "50%", 
+                        border: "1px solid var(--ink)", 
+                        background: "var(--paper)", 
+                        color: "var(--ink)", 
+                        fontSize: "14px", 
+                        fontWeight: "bold",
+                        display: "flex", 
+                        alignItems: "center", 
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease"
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--ink)"; e.currentTarget.style.color = "var(--cream)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "var(--paper)"; e.currentTarget.style.color = "var(--ink)"; }}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                {/* Cheriyal */}
+                <div className="addon-card" style={{ border: "1px solid oklch(0.82 0.02 75)", borderRadius: "6px", padding: "12px 16px", background: "var(--paper)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ paddingRight: "12px", textAlign: "left" }}>
+                    <h4 style={{ margin: "0 0 2px 0", color: "var(--ink)", fontFamily: "var(--serif)", fontSize: "17px", fontWeight: "600" }}>Cheriyal Arts</h4>
+                    <p style={{ margin: "0 0 4px 0", fontSize: "12px", color: "var(--muted)", lineHeight: "1.3" }}>Includes a takeaway of the Cheriyal art piece you paint.</p>
+                    <span style={{ fontSize: "14px", fontWeight: "700", color: "var(--terracotta)", display: "inline-block" }}>₹249 / guest</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <button 
+                      onClick={() => setCheriyalQty(Math.max(0, cheriyalQty - 1))} 
+                      style={{ 
+                        width: "28px", 
+                        height: "28px", 
+                        borderRadius: "50%", 
+                        border: "1px solid var(--ink)", 
+                        background: "var(--paper)", 
+                        color: "var(--ink)", 
+                        fontSize: "14px", 
+                        fontWeight: "bold",
+                        display: "flex", 
+                        alignItems: "center", 
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease"
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--ink)"; e.currentTarget.style.color = "var(--cream)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "var(--paper)"; e.currentTarget.style.color = "var(--ink)"; }}
+                    >
+                      −
+                    </button>
+                    <div style={{ fontSize: "15px", fontWeight: "600", color: "var(--ink)", minWidth: "18px", textAlign: "center" }}>{cheriyalQty}</div>
+                    <button 
+                      onClick={() => setCheriyalQty(Math.min(qty, cheriyalQty + 1))} 
+                      style={{ 
+                        width: "28px", 
+                        height: "28px", 
+                        borderRadius: "50%", 
+                        border: "1px solid var(--ink)", 
+                        background: "var(--paper)", 
+                        color: "var(--ink)", 
+                        fontSize: "14px", 
+                        fontWeight: "bold",
+                        display: "flex", 
+                        alignItems: "center", 
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease"
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--ink)"; e.currentTarget.style.color = "var(--cream)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "var(--paper)"; e.currentTarget.style.color = "var(--ink)"; }}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                {/* Lac Bangles */}
+                <div className="addon-card" style={{ border: "1px solid oklch(0.82 0.02 75)", borderRadius: "6px", padding: "12px 16px", background: "var(--paper)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ paddingRight: "12px", textAlign: "left" }}>
+                    <h4 style={{ margin: "0 0 2px 0", color: "var(--ink)", fontFamily: "var(--serif)", fontSize: "17px", fontWeight: "600" }}>Lac Bangles</h4>
+                    <p style={{ margin: "0 0 4px 0", fontSize: "12px", color: "var(--muted)", lineHeight: "1.3" }}>Includes a pair of customized bangles styled live.</p>
+                    <span style={{ fontSize: "14px", fontWeight: "700", color: "var(--terracotta)", display: "inline-block" }}>₹199 / guest</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <button 
+                      onClick={() => setBanglesQty(Math.max(0, banglesQty - 1))} 
+                      style={{ 
+                        width: "28px", 
+                        height: "28px", 
+                        borderRadius: "50%", 
+                        border: "1px solid var(--ink)", 
+                        background: "var(--paper)", 
+                        color: "var(--ink)", 
+                        fontSize: "14px", 
+                        fontWeight: "bold",
+                        display: "flex", 
+                        alignItems: "center", 
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease"
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--ink)"; e.currentTarget.style.color = "var(--cream)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "var(--paper)"; e.currentTarget.style.color = "var(--ink)"; }}
+                    >
+                      −
+                    </button>
+                    <div style={{ fontSize: "15px", fontWeight: "600", color: "var(--ink)", minWidth: "18px", textAlign: "center" }}>{banglesQty}</div>
+                    <button 
+                      onClick={() => setBanglesQty(Math.min(qty, banglesQty + 1))} 
+                      style={{ 
+                        width: "28px", 
+                        height: "28px", 
+                        borderRadius: "50%", 
+                        border: "1px solid var(--ink)", 
+                        background: "var(--paper)", 
+                        color: "var(--ink)", 
+                        fontSize: "14px", 
+                        fontWeight: "bold",
+                        display: "flex", 
+                        alignItems: "center", 
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease"
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--ink)"; e.currentTarget.style.color = "var(--cream)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "var(--paper)"; e.currentTarget.style.color = "var(--ink)"; }}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                {/* Combo Pack */}
+                <div className="addon-card" style={{ border: "1.5px solid var(--terracotta)", borderRadius: "6px", padding: "12px 16px", background: "rgba(166, 78, 56, 0.03)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ paddingRight: "12px", textAlign: "left" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px" }}>
+                      <h4 style={{ margin: 0, color: "var(--terracotta)", fontFamily: "var(--serif)", fontSize: "17px", fontWeight: "600" }}>All 3 Workshops Combo</h4>
+                      <span style={{ background: "var(--terracotta)", color: "white", fontSize: "9px", padding: "2px 6px", borderRadius: "3px", textTransform: "uppercase", fontWeight: "bold" }}>Best Value</span>
+                    </div>
+                    <p style={{ margin: "0 0 4px 0", fontSize: "12px", color: "var(--muted)", lineHeight: "1.3" }}>Includes takeaways from all three workshops (Save ₹148!).</p>
+                    <span style={{ fontSize: "14px", fontWeight: "700", color: "var(--terracotta)", display: "inline-block" }}>₹499 / guest</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <button 
+                      onClick={() => setComboQty(Math.max(0, comboQty - 1))} 
+                      style={{ 
+                        width: "28px", 
+                        height: "28px", 
+                        borderRadius: "50%", 
+                        border: "1px solid var(--ink)", 
+                        background: "var(--paper)", 
+                        color: "var(--ink)", 
+                        fontSize: "14px", 
+                        fontWeight: "bold",
+                        display: "flex", 
+                        alignItems: "center", 
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease"
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--ink)"; e.currentTarget.style.color = "var(--cream)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "var(--paper)"; e.currentTarget.style.color = "var(--ink)"; }}
+                    >
+                      −
+                    </button>
+                    <div style={{ fontSize: "15px", fontWeight: "600", color: "var(--ink)", minWidth: "18px", textAlign: "center" }}>{comboQty}</div>
+                    <button 
+                      onClick={() => setComboQty(Math.min(qty, comboQty + 1))} 
+                      style={{ 
+                        width: "28px", 
+                        height: "28px", 
+                        borderRadius: "50%", 
+                        border: "1px solid var(--ink)", 
+                        background: "var(--paper)", 
+                        color: "var(--ink)", 
+                        fontSize: "14px", 
+                        fontWeight: "bold",
+                        display: "flex", 
+                        alignItems: "center", 
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease"
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--ink)"; e.currentTarget.style.color = "var(--cream)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = "var(--paper)"; e.currentTarget.style.color = "var(--ink)"; }}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+
+              <div className="modal-actions" style={{ marginTop: "24px" }}>
+                <button className="btn-ghost" onClick={() => setStep(2)}>← Back</button>
+                <button className="btn-primary" onClick={() => setStep(4)}>
+                  {addonsTotal > 0 ? "Continue with Add-ons →" : "Skip Add-ons →"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {step === 4 && (
             <div className="step-pane">
               <h3 className="step-title">Waakili Secure Checkout</h3>
               
@@ -417,13 +705,51 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
                 <div className="summary-list" style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%", fontSize: "14px", marginBottom: "24px", color: "var(--ink-2)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
                     <span>Waakili Ticket x{qty}</span>
-                    <span style={{ fontWeight: "600" }}>₹{total.toLocaleString("en-IN")}</span>
+                    <span style={{ fontWeight: "600" }}>₹{ticketsTotal.toLocaleString("en-IN")}</span>
                   </div>
+
+                  {potteryQty > 0 && (
+                    <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+                      <span>Pottery Workshop x{potteryQty}</span>
+                      <span style={{ fontWeight: "600" }}>₹{(potteryQty * 199).toLocaleString("en-IN")}</span>
+                    </div>
+                  )}
+
+                  {cheriyalQty > 0 && (
+                    <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+                      <span>Cheriyal Arts Workshop x{cheriyalQty}</span>
+                      <span style={{ fontWeight: "600" }}>₹{(cheriyalQty * 249).toLocaleString("en-IN")}</span>
+                    </div>
+                  )}
+
+                  {banglesQty > 0 && (
+                    <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+                      <span>Lac Bangles Workshop x{banglesQty}</span>
+                      <span style={{ fontWeight: "600" }}>₹{(banglesQty * 199).toLocaleString("en-IN")}</span>
+                    </div>
+                  )}
+
+                  {comboQty > 0 && (
+                    <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+                      <span>All 3 Workshops Combo x{comboQty}</span>
+                      <span style={{ fontWeight: "600" }}>₹{(comboQty * 499).toLocaleString("en-IN")}</span>
+                    </div>
+                  )}
+
+                  {addonsTotal > 0 && (
+                    <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
+                      <span>GST (18% on Add-ons)</span>
+                      <span style={{ fontWeight: "600" }}>₹{gstTotal.toLocaleString("en-IN")}</span>
+                    </div>
+                  )}
+
                   <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
                     <span>Booking Fees (3%)</span>
                     <span style={{ fontWeight: "600" }}>₹{fees.toLocaleString("en-IN")}</span>
                   </div>
+                  
                   <hr style={{ border: "none", borderTop: "1px dashed oklch(0.85 0.02 75)", margin: "4px 0" }} />
+                  
                   <div style={{ display: "flex", justifyContent: "space-between", width: "100%", fontSize: "16px", color: "var(--ink)", fontWeight: "700" }}>
                     <span>Total Amount</span>
                     <span style={{ color: "var(--terracotta)" }}>₹{grand.toLocaleString("en-IN")}</span>
@@ -462,16 +788,16 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
               </div>
 
               <div className="modal-actions" style={{ marginTop: "12px" }}>
-                <button className="btn-ghost" onClick={() => setStep(2)}>← Back</button>
+                <button className="btn-ghost" onClick={() => setStep(3)}>← Back</button>
               </div>
             </div>
           )}
 
-          {step === 4 && (
+          {step === 5 && (
             <div className="step-pane confirm">
               {ticketStatus === "pending_verification" ? (
                 <>
-                  <div class="confirm-mark" style={{ animation: "bob 2s ease infinite", display: "flex", justifyContent: "center" }}>
+                  <div className="confirm-mark" style={{ animation: "bob 2s ease infinite", display: "flex", justifyContent: "center" }}>
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--ochre)" strokeWidth="1.5">
                       <circle cx="12" cy="12" r="10" />
                       <polyline points="12 6 12 12 16 14" />
@@ -486,7 +812,7 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
                 </>
               ) : ticketStatus === "rejected" ? (
                 <>
-                  <div class="confirm-mark" style={{ display: "flex", justifyContent: "center" }}>
+                  <div className="confirm-mark" style={{ display: "flex", justifyContent: "center" }}>
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--terracotta)" strokeWidth="1.5">
                       <circle cx="12" cy="12" r="10" />
                       <line x1="15" y1="9" x2="9" y2="15" />
@@ -511,6 +837,7 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
                   <div className="stub-label">Antigravityy</div>
                   <div className="stub-id">{ticketId}</div>
                   <div className="stub-qty">{qty} {qty === 1 ? "guest" : "guests"}</div>
+                  <div className="stub-qty" style={{ marginTop: "4px", fontSize: "11px", opacity: 0.8 }}>₹{grand} Paid</div>
                   <div className="stub-motif">
                     <Motif size={26} color="var(--cream)" />
                   </div>
@@ -531,6 +858,19 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
                     <div><div className="t-k">Time</div><div className="t-v">4 — 9 PM</div></div>
                     <div><div className="t-k">Venue</div><div className="t-v">Phoenix Arena</div></div>
                   </div>
+                  {potteryQty + cheriyalQty + banglesQty + comboQty > 0 && (
+                    <div style={{ marginTop: "14px", borderTop: "1px dashed rgba(0,0,0,0.1)", paddingTop: "8px", fontSize: "12px", textAlign: "left" }}>
+                      <span style={{ fontWeight: "600", textTransform: "uppercase", fontSize: "9px", color: "var(--muted)", display: "block", letterSpacing: "0.5px", marginBottom: "2px" }}>Add-ons (Workshops)</span>
+                      <span style={{ color: "var(--ink)" }}>
+                        {[
+                          potteryQty > 0 && `Pottery x${potteryQty}`,
+                          cheriyalQty > 0 && `Cheriyal x${cheriyalQty}`,
+                          banglesQty > 0 && `Lac Bangles x${banglesQty}`,
+                          comboQty > 0 && `Combo Pack x${comboQty}`
+                        ].filter(Boolean).join(", ")}
+                      </span>
+                    </div>
+                  )}
                   <div className="t-foot">
                     {ticketStatus === "success" ? (
                       <div className="qr">
@@ -802,7 +1142,7 @@ const App = () => {
         <div className="nav-links">
           <a href="#about">About</a>
           <a href="#details">Details</a>
-          <button className="btn-primary small" onClick={() => setBookOpen(true)}>Book ₹1</button>
+          <button className="btn-primary small" onClick={() => setBookOpen(true)}>Book ₹499</button>
         </div>
       </nav>
 
