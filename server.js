@@ -143,6 +143,27 @@ app.get("/favicon.ico", (req, res) => {
   res.sendFile(path.join(__dirname, "favi.jpeg"));
 });
 
+// Serve new image assets
+app.get("/waakili.png", (req, res) => {
+  res.setHeader("Content-Type", "image/png");
+  res.sendFile(path.join(__dirname, "waakili.png"));
+});
+
+app.get("/phoenix.png", (req, res) => {
+  res.setHeader("Content-Type", "image/png");
+  res.sendFile(path.join(__dirname, "phoenix.png"));
+});
+
+app.get("/Kalakriti.live.png", (req, res) => {
+  res.setHeader("Content-Type", "image/png");
+  res.sendFile(path.join(__dirname, "Kalakriti.live.png"));
+});
+
+app.get("/AG.png", (req, res) => {
+  res.setHeader("Content-Type", "image/png");
+  res.sendFile(path.join(__dirname, "AG.png"));
+});
+
 // Serve Waakili.html at root URL
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "Waakili.html"));
@@ -238,29 +259,27 @@ An evening to walk into.
 
 // Helper: Parse add-ons from UTR string
 function parseAddonsFromUtr(utr) {
-  let pottery = 0, cheriyal = 0, bangles = 0, combo = 0;
+  let pottery = 0, bangles = 0, combo = 0;
   if (utr && utr.includes('|')) {
     const [_, addonsPart] = utr.split('|');
     const pairs = addonsPart.split(';');
     pairs.forEach(pair => {
       const [key, val] = pair.split(':');
       if (key === 'pottery') pottery = parseInt(val) || 0;
-      if (key === 'cheriyal') cheriyal = parseInt(val) || 0;
       if (key === 'bangles') bangles = parseInt(val) || 0;
       if (key === 'combo') combo = parseInt(val) || 0;
     });
   }
-  return { pottery, cheriyal, bangles, combo };
+  return { pottery, bangles, combo };
 }
 
 // Helper: Format add-ons for printing/email
 function formatAddonsList(utr) {
-  const { pottery, cheriyal, bangles, combo } = parseAddonsFromUtr(utr);
+  const { pottery, bangles, combo } = parseAddonsFromUtr(utr);
   const items = [];
   if (pottery > 0) items.push(`Pottery Workshop x${pottery} (₹199/ea)`);
-  if (cheriyal > 0) items.push(`Cheriyal Arts Workshop x${cheriyal} (₹249/ea)`);
-  if (bangles > 0) items.push(`Lac Bangles Workshop x${bangles} (₹199/ea)`);
-  if (combo > 0) items.push(`3-Workshops Combo Pack x${combo} (₹499/ea)`);
+  if (bangles > 0) items.push(`Lac Bangles Workshop x${bangles} (₹249/ea)`);
+  if (combo > 0) items.push(`2-Workshops Combo Pack x${combo} (₹399/ea)`);
   return items.length > 0 ? items.join(", ") : "None";
 }
 
@@ -381,14 +400,13 @@ app.post("/api/pay", async (req, res) => {
 
     // Parse Addons
     const potteryQty = addons && typeof addons.pottery === 'number' ? Math.max(0, parseInt(addons.pottery)) : 0;
-    const cheriyalQty = addons && typeof addons.cheriyal === 'number' ? Math.max(0, parseInt(addons.cheriyal)) : 0;
     const banglesQty = addons && typeof addons.bangles === 'number' ? Math.max(0, parseInt(addons.bangles)) : 0;
     const comboQty = addons && typeof addons.combo === 'number' ? Math.max(0, parseInt(addons.combo)) : 0;
 
     // 3. SECURE PRICING AUDIT: Recalculate price on the backend
     const pricePerPerson = 499;
     const ticketsTotal = cleanQty * pricePerPerson;
-    const addonsTotal = (potteryQty * 199) + (cheriyalQty * 249) + (banglesQty * 199) + (comboQty * 499);
+    const addonsTotal = (potteryQty * 199) + (banglesQty * 249) + (comboQty * 399);
     const gstTotal = Math.round(addonsTotal * 0.18);
     const computedFees = Math.round((ticketsTotal + addonsTotal + gstTotal) * 0.03);
     const computedGrand = ticketsTotal + addonsTotal + gstTotal + computedFees;
@@ -401,7 +419,7 @@ app.post("/api/pay", async (req, res) => {
     const txnId = "WKL-" + Math.random().toString(36).slice(2, 6).toUpperCase() + "-" + Math.floor(Math.random() * 9000 + 1000);
 
     // Save addons description inside UTR column
-    const addonsStr = `pottery:${potteryQty};cheriyal:${cheriyalQty};bangles:${banglesQty};combo:${comboQty}`;
+    const addonsStr = `pottery:${potteryQty};bangles:${banglesQty};combo:${comboQty}`;
     const utrValue = addonsTotal > 0 ? `PhonePe|${addonsStr}` : "PhonePe";
 
     const bookingRecord = {

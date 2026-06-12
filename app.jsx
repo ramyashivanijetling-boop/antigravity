@@ -67,8 +67,12 @@ const Opening = ({ onBook }) => {
         </div>
       </div>
 
-      <div className="opening-corner tl"><Motif size={42} color="var(--terracotta)" /></div>
-      <div className="opening-corner tr"><Motif size={42} color="var(--terracotta)" /></div>
+      <div className="opening-corner tl opening-logo">
+        <img src="/waakili.png" alt="Waakili Logo" />
+      </div>
+      <div className="opening-corner tr opening-logo">
+        <img src="/AG.png" alt="Antigravityy Logo" />
+      </div>
       <div className="opening-corner bl"><Motif size={42} color="var(--terracotta)" /></div>
       <div className="opening-corner br"><Motif size={42} color="var(--terracotta)" /></div>
     </section>
@@ -112,6 +116,107 @@ const About = () => (
           through the spirit of Telangana — experiencing its heritage, flavours, sounds,
           dialects, crafts, and stories.
         </p>
+      </div>
+    </div>
+  </section>
+);
+
+// ---------- Experience ----------
+const Experience = () => (
+  <section className="experience" id="experience" data-screen-label="03 Experience">
+    <div className="section-label">
+      <Diamond size={6} color="var(--terracotta)" /> The Waakili Experience <Diamond size={6} color="var(--terracotta)" />
+    </div>
+    <h2 className="section-title">What awaits you inside.</h2>
+    
+    <div className="experience-grid">
+      <div className="experience-card">
+        <h3 className="experience-card-title">
+          <Diamond size={6} color="var(--terracotta)" /> Perini Performance
+        </h3>
+        <p className="experience-card-desc">
+          Witness the ancient, high-energy warrior dance form born in Telangana during the Kakatiya Dynasty. 
+          Performed to invoke Lord Shiva, it resonates with powerful rhythms, vigorous movements, and majestic cultural pride.
+        </p>
+      </div>
+
+      <div className="experience-card">
+        <h3 className="experience-card-title">
+          <Diamond size={6} color="var(--terracotta)" /> Dappu Performance
+        </h3>
+        <p className="experience-card-desc">
+          Feel the soul of Telangana's folk music through the iconic beats of the Dappu instrument. 
+          This energetic dance performance combines resonant, foot-tapping rhythms with lively movements representing folk celebrations.
+        </p>
+      </div>
+
+      <div className="experience-card">
+        <h3 className="experience-card-title">
+          <Diamond size={6} color="var(--terracotta)" /> Burrakatha
+        </h3>
+        <p className="experience-card-desc">
+          Experience the captivating art of theatrical storytelling originating in Telangana. 
+          Using music, dialogue, and traditional folk instruments, performers bring ancient tales of historical heroes and cultural folklore to life.
+        </p>
+      </div>
+
+      <div className="experience-card">
+        <h3 className="experience-card-title">
+          <Diamond size={6} color="var(--terracotta)" /> Panel Discussion
+        </h3>
+        <p className="experience-card-desc">
+          Engage in an insightful, thought-provoking dialogue with prominent personalities, historians, and cultural voices of the state. 
+          The discussion will cover the hardships, historical welfare, and future of Telangana's heritage.
+        </p>
+      </div>
+
+      <div className="experience-card">
+        <h3 className="experience-card-title">
+          <Diamond size={6} color="var(--terracotta)" /> Folk Singing
+        </h3>
+        <p className="experience-card-desc">
+          Let's groove and celebrate with foot-tapping Telangana folk songs. 
+          The performance features soulful rhythms and traditional melodies of the soil that will keep you connected to the roots and humming along.
+        </p>
+      </div>
+
+      <div className="experience-card">
+        <h3 className="experience-card-title">
+          <Diamond size={6} color="var(--terracotta)" /> Traditional Dinner
+        </h3>
+        <p className="experience-card-desc">
+          Your ticket includes a full traditional dinner, curated to bring you the rich spices and authentic taste of Telangana's local cuisine. 
+          Savor heritage recipes prepared by traditional cooks of the region.
+        </p>
+      </div>
+
+      <div className="experience-card full-width">
+        <h3 className="experience-card-title">
+          <Diamond size={6} color="var(--terracotta)" /> Hands-on Workshops (with Kalakriti)
+        </h3>
+        <p className="experience-card-desc" style={{ marginBottom: "16px" }}>
+          Kalakriti, our workshop partner, brings you three immersive, hands-on masterclasses to learn, create, and take home a piece of Telangana's art legacy:
+        </p>
+        <div className="experience-sub-grid">
+          <div className="experience-sub-item">
+            <strong>Cheriyal Painting</strong>
+            <div style={{ marginTop: "4px", fontSize: "13px", color: "var(--ink-2)" }}>
+              Originating in Cheriyal village (Siddipet district), learn the art of using natural colors to paint traditional characters on canvas scrolls.
+            </div>
+          </div>
+          <div className="experience-sub-item">
+            <strong>Clay Pottery</strong>
+            <div style={{ marginTop: "4px", fontSize: "13px", color: "var(--ink-2)" }}>
+              Discover the meditative art of throwing clay on the potter's wheel, a craft practiced for generations across Telangana, notably in Adilabad and Nizamabad.
+            </div>
+          </div>
+          <div className="experience-sub-item">
+            <strong>Lac Bangles</strong>
+            <div style={{ marginTop: "4px", fontSize: "13px", color: "var(--ink-2)" }}>
+              Create your own customized bangles set with natural lacquer and stones, a heritage craft originating from the historic bazaar lanes of Hyderabad.
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -282,7 +387,7 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
   const step1Grand = step1Total + step1Fees;
 
   const ticketsTotal = qty * 499;
-  const addonsTotal = (potteryQty * 199) + (cheriyalQty * 249) + (banglesQty * 199) + (comboQty * 499);
+  const addonsTotal = (potteryQty * 199) + (cheriyalQty * 249) + (banglesQty * 249) + (comboQty * 399);
   const gstTotal = Math.round(addonsTotal * 0.18);
   const total = ticketsTotal; // keeps backward-compatibility
   const fees = Math.round((ticketsTotal + addonsTotal + gstTotal) * 0.03);
@@ -508,68 +613,12 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
                   </div>
                 </div>
 
-                {/* Cheriyal */}
-                <div className="addon-card" style={{ border: "1px solid oklch(0.82 0.02 75)", borderRadius: "6px", padding: "12px 16px", background: "var(--paper)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div style={{ paddingRight: "12px", textAlign: "left" }}>
-                    <h4 style={{ margin: "0 0 2px 0", color: "var(--ink)", fontFamily: "var(--serif)", fontSize: "17px", fontWeight: "600" }}>Cheriyal Arts</h4>
-                    <p style={{ margin: "0 0 4px 0", fontSize: "12px", color: "var(--muted)", lineHeight: "1.3" }}>Includes a takeaway of the Cheriyal art piece you paint.</p>
-                    <span style={{ fontSize: "14px", fontWeight: "700", color: "var(--terracotta)", display: "inline-block" }}>₹249 / guest</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <button 
-                      onClick={() => setCheriyalQty(Math.max(0, cheriyalQty - 1))} 
-                      style={{ 
-                        width: "28px", 
-                        height: "28px", 
-                        borderRadius: "50%", 
-                        border: "1px solid var(--ink)", 
-                        background: "var(--paper)", 
-                        color: "var(--ink)", 
-                        fontSize: "14px", 
-                        fontWeight: "bold",
-                        display: "flex", 
-                        alignItems: "center", 
-                        justifyContent: "center",
-                        cursor: "pointer",
-                        transition: "all 0.15s ease"
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--ink)"; e.currentTarget.style.color = "var(--cream)"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = "var(--paper)"; e.currentTarget.style.color = "var(--ink)"; }}
-                    >
-                      −
-                    </button>
-                    <div style={{ fontSize: "15px", fontWeight: "600", color: "var(--ink)", minWidth: "18px", textAlign: "center" }}>{cheriyalQty}</div>
-                    <button 
-                      onClick={() => setCheriyalQty(Math.min(qty, cheriyalQty + 1))} 
-                      style={{ 
-                        width: "28px", 
-                        height: "28px", 
-                        borderRadius: "50%", 
-                        border: "1px solid var(--ink)", 
-                        background: "var(--paper)", 
-                        color: "var(--ink)", 
-                        fontSize: "14px", 
-                        fontWeight: "bold",
-                        display: "flex", 
-                        alignItems: "center", 
-                        justifyContent: "center",
-                        cursor: "pointer",
-                        transition: "all 0.15s ease"
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = "var(--ink)"; e.currentTarget.style.color = "var(--cream)"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = "var(--paper)"; e.currentTarget.style.color = "var(--ink)"; }}
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-
                 {/* Lac Bangles */}
                 <div className="addon-card" style={{ border: "1px solid oklch(0.82 0.02 75)", borderRadius: "6px", padding: "12px 16px", background: "var(--paper)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div style={{ paddingRight: "12px", textAlign: "left" }}>
                     <h4 style={{ margin: "0 0 2px 0", color: "var(--ink)", fontFamily: "var(--serif)", fontSize: "17px", fontWeight: "600" }}>Lac Bangles</h4>
                     <p style={{ margin: "0 0 4px 0", fontSize: "12px", color: "var(--muted)", lineHeight: "1.3" }}>Includes a pair of customized bangles styled live.</p>
-                    <span style={{ fontSize: "14px", fontWeight: "700", color: "var(--terracotta)", display: "inline-block" }}>₹199 / guest</span>
+                    <span style={{ fontSize: "14px", fontWeight: "700", color: "var(--terracotta)", display: "inline-block" }}>₹249 / guest</span>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                     <button 
@@ -624,11 +673,11 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
                 <div className="addon-card" style={{ border: "1.5px solid var(--terracotta)", borderRadius: "6px", padding: "12px 16px", background: "rgba(166, 78, 56, 0.03)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div style={{ paddingRight: "12px", textAlign: "left" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px" }}>
-                      <h4 style={{ margin: 0, color: "var(--terracotta)", fontFamily: "var(--serif)", fontSize: "17px", fontWeight: "600" }}>All 3 Workshops Combo</h4>
+                      <h4 style={{ margin: 0, color: "var(--terracotta)", fontFamily: "var(--serif)", fontSize: "17px", fontWeight: "600" }}>All 2 Workshops Combo</h4>
                       <span style={{ background: "var(--terracotta)", color: "white", fontSize: "9px", padding: "2px 6px", borderRadius: "3px", textTransform: "uppercase", fontWeight: "bold" }}>Best Value</span>
                     </div>
-                    <p style={{ margin: "0 0 4px 0", fontSize: "12px", color: "var(--muted)", lineHeight: "1.3" }}>Includes takeaways from all three workshops (Save ₹148!).</p>
-                    <span style={{ fontSize: "14px", fontWeight: "700", color: "var(--terracotta)", display: "inline-block" }}>₹499 / guest</span>
+                    <p style={{ margin: "0 0 4px 0", fontSize: "12px", color: "var(--muted)", lineHeight: "1.3" }}>Includes takeaways from both workshops.</p>
+                    <span style={{ fontSize: "14px", fontWeight: "700", color: "var(--terracotta)", display: "inline-block" }}>₹399 / guest</span>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                     <button 
@@ -725,14 +774,14 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
                   {banglesQty > 0 && (
                     <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
                       <span>Lac Bangles Workshop x{banglesQty}</span>
-                      <span style={{ fontWeight: "600" }}>₹{(banglesQty * 199).toLocaleString("en-IN")}</span>
+                      <span style={{ fontWeight: "600" }}>₹{(banglesQty * 249).toLocaleString("en-IN")}</span>
                     </div>
                   )}
 
                   {comboQty > 0 && (
                     <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
-                      <span>All 3 Workshops Combo x{comboQty}</span>
-                      <span style={{ fontWeight: "600" }}>₹{(comboQty * 499).toLocaleString("en-IN")}</span>
+                      <span>All 2 Workshops Combo x{comboQty}</span>
+                      <span style={{ fontWeight: "600" }}>₹{(comboQty * 399).toLocaleString("en-IN")}</span>
                     </div>
                   )}
 
@@ -1066,6 +1115,27 @@ const PolicyModal = ({ policyType, onClose }) => {
   );
 };
 
+// ---------- Partners ----------
+const Partners = () => (
+  <section className="partners" data-screen-label="05 Partners">
+    <div className="partners-inner">
+      <div className="partner-col">
+        <h3 className="partner-heading">In Association With</h3>
+        <div className="partner-card">
+          <img src="/Kalakriti.live.png" alt="Kalakriti Live Logo" className="logo-association" />
+        </div>
+      </div>
+      <div className="partner-divider" />
+      <div className="partner-col">
+        <h3 className="partner-heading">Venue Partner</h3>
+        <div className="partner-card">
+          <img src="/phoenix.png" alt="Phoenix Arena Logo" />
+        </div>
+      </div>
+    </div>
+  </section>
+);
+
 // ---------- Footer ----------
 const Footer = ({ onBook, onOpenPolicy }) => (
   <footer className="footer" data-screen-label="05 Footer">
@@ -1079,6 +1149,7 @@ const Footer = ({ onBook, onOpenPolicy }) => (
         <button className="btn-primary" onClick={onBook}>Book your seat</button>
         <div className="footer-meta">
           <a href="#about">About</a>
+          <a href="#experience">Highlights</a>
           <a href="#details">Details</a>
           <button onClick={() => onOpenPolicy("contact")}>Contact</button>
         </div>
@@ -1141,6 +1212,7 @@ const App = () => {
         </div>
         <div className="nav-links">
           <a href="#about">About</a>
+          <a href="#experience">Highlights</a>
           <a href="#details">Details</a>
           <button className="btn-primary small" onClick={() => setBookOpen(true)}>Book ₹499</button>
         </div>
@@ -1150,7 +1222,11 @@ const App = () => {
       <Border />
       <About />
       <Border />
+      <Experience />
+      <Border />
       <Details onBook={() => setBookOpen(true)} />
+      <Border />
+      <Partners />
       <Footer onBook={() => setBookOpen(true)} onOpenPolicy={setPolicyOpen} />
 
       <BookingFlow 
