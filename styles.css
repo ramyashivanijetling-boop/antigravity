@@ -1067,6 +1067,8 @@ input { font-family: inherit; }
 }
 @media (max-width: 560px) {
   .details-grid { grid-template-columns: 1fr; }
+  .details-card { padding: 40px 20px; }
+  .detail { padding: 16px 12px; }
   .telugu { font-size: 44px; }
   .stepper { flex-wrap: wrap; }
   .step-label { display: none; }
@@ -1077,6 +1079,20 @@ input { font-family: inherit; }
     padding: 16px;
   }
   .stub-id { writing-mode: horizontal-tb; transform: none; margin: 0; flex: 1; text-align: left; }
+  
+  /* Compact Booking Modal Body and Stepper items */
+  .modal-body { padding: 16px; }
+  .phonepe-option-pane { padding: 16px; }
+  .qty-row { padding: 20px 0; gap: 20px; }
+  .qty-num { font-size: 48px; }
+  .modal-actions { gap: 8px; }
+  .modal-actions .btn-primary,
+  .modal-actions .btn-ghost {
+    padding: 12px 10px;
+    font-size: 12px;
+    flex: 1;
+    text-align: center;
+  }
 }
 
 @media print {
@@ -1187,12 +1203,36 @@ input { font-family: inherit; }
 }
 
 @media (max-width: 768px) {
+  .partners {
+    padding: 40px 16px;
+  }
   .partners-inner {
-    flex-direction: column;
-    gap: 40px;
+    flex-direction: row;
+    gap: 12px;
+  }
+  .partner-col {
+    flex: 1;
+  }
+  .partner-heading {
+    font-size: 15px;
+    margin: 0 0 12px 0;
+  }
+  .partner-card {
+    min-height: 90px;
+    padding: 12px 12px;
+  }
+  .partner-card img {
+    max-height: 50px;
+  }
+  .partner-card img.logo-association {
+    max-height: 60px;
+    transform: scale(1.6);
   }
   .partner-divider {
-    display: none;
+    display: block;
+    width: 1px;
+    height: 80px;
+    background: oklch(0.85 0.02 75);
   }
 }
 
