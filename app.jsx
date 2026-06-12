@@ -1146,7 +1146,6 @@ const Footer = ({ onBook, onOpenPolicy }) => (
         <div className="footer-sub">A Walk into Timeless Heritage of Telangana · 28 June 2026</div>
       </div>
       <div className="footer-right">
-        <button className="btn-primary" onClick={onBook}>Book your seat</button>
         <div className="footer-meta">
           <a href="#about">About</a>
           <a href="#experience">Highlights</a>
