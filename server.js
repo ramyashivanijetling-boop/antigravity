@@ -27,9 +27,46 @@ if (process.env.PHONEPE_CLIENT_ID && process.env.PHONEPE_SALT_KEY) {
 
 // Helper: Send email via Brevo HTTP API
 async function sendEmailViaBrevo(to, subject, text, bcc = null) {
+  // Try Nodemailer SMTP first (Gmail app password) if available
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+  
+  if (smtpUser && smtpPass) {
+    try {
+      console.log(`Attempting SMTP dispatch to ${to}...`);
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST || "smtp.gmail.com",
+        port: parseInt(process.env.SMTP_PORT || "587"),
+        secure: false,
+        auth: {
+          user: smtpUser,
+          pass: smtpPass,
+        },
+      });
+
+      const mailOptions = {
+        from: `"${process.env.BREVO_SENDER_NAME || "Waakili Heritage"}" <${smtpUser}>`,
+        to: to,
+        subject: subject,
+        text: text,
+      };
+
+      if (bcc) {
+        mailOptions.bcc = bcc;
+      }
+
+      const info = await transporter.sendMail(mailOptions);
+      console.log(`✅ SMTP Email dispatched successfully to ${to}. Message ID: ${info.messageId}`);
+      return; // Success! Skip Brevo fallback
+    } catch (smtpErr) {
+      console.error(`❌ SMTP dispatch failed: ${smtpErr.message}. Falling back to Brevo API.`);
+    }
+  }
+
+  // Fallback to Brevo HTTP API
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) {
-    console.log(`[SIMULATED EMAIL NOT SENT] No Brevo API Key. To: ${to} | Subject: ${subject}`);
+    console.log(`[SIMULATED EMAIL NOT SENT] No SMTP credentials and no Brevo API Key. To: ${to} | Subject: ${subject}`);
     return;
   }
 
@@ -473,7 +510,8 @@ app.post("/api/pay", async (req, res) => {
 
       const headers = {
         "Content-Type": "application/json",
-        "Authorization": `O-Bearer ${token}`
+        "Authorization": `O-Bearer ${token}`,
+        "X-CALLBACK-URL": `${req.protocol}://${req.get("host")}/api/payment-callback`
       };
 
       const response = await axios.post(v2PayUrl, v2Payload, { headers });
@@ -546,11 +584,66 @@ app.get("/api/booking-details/:txnId", async (req, res) => {
   }
 });
 
+// Helper: Extract transaction ID and payment state from PhonePe callback or redirect requests
+function extractPaymentData(req) {
+  let txnId = req.query.txnId || null;
+  let state = req.query.status || null; // standard parameter if mock checkout or query param status
+  
+  let bodyJson = {};
+  
+  // 1. Check if there is a base64 encoded response in the body
+  if (req.body && req.body.response) {
+    try {
+      const decoded = Buffer.from(req.body.response, 'base64').toString('utf-8');
+      bodyJson = JSON.parse(decoded);
+      console.log("Extracted payment payload from base64 body:", JSON.stringify(bodyJson));
+    } catch (err) {
+      console.error("Failed to decode base64 response in body:", err.message);
+    }
+  } else if (req.body) {
+    bodyJson = req.body;
+  }
+
+  const findVal = (obj, keys) => {
+    for (const key of keys) {
+      if (obj[key] !== undefined && obj[key] !== null) return obj[key];
+    }
+    return null;
+  };
+
+  const txnIdKeys = ["merchantOrderId", "merchantTransactionId", "transactionId"];
+  const stateKeys = ["state", "paymentState", "status"];
+
+  // Search root of bodyJson
+  const rootTxn = findVal(bodyJson, txnIdKeys);
+  const rootState = findVal(bodyJson, stateKeys);
+  if (rootTxn) txnId = rootTxn;
+  if (rootState) state = rootState;
+
+  // Search payload
+  if (bodyJson.payload) {
+    const payloadTxn = findVal(bodyJson.payload, txnIdKeys);
+    const payloadState = findVal(bodyJson.payload, stateKeys);
+    if (payloadTxn) txnId = payloadTxn;
+    if (payloadState) state = payloadState;
+  }
+
+  // Search data
+  if (bodyJson.data) {
+    const dataTxn = findVal(bodyJson.data, txnIdKeys);
+    const dataState = findVal(bodyJson.data, stateKeys);
+    if (dataTxn) txnId = dataTxn;
+    if (dataState) state = dataState;
+  }
+
+  return { txnId, state };
+}
+
 // API: Handle PhonePe Payment Gateway Redirection (GET/POST)
 app.all("/api/payment-response", async (req, res) => {
   const currentBaseUrl = `${req.protocol}://${req.get("host")}`;
   try {
-    const txnId = req.query.txnId || req.body.merchantTransactionId;
+    const { txnId } = extractPaymentData(req);
     const mockStatus = req.query.status; // Optional parameter passed by our mock page
     
     if (!txnId) {
@@ -640,8 +733,13 @@ app.all("/api/payment-response", async (req, res) => {
       responseData = statusResponse.data;
       console.log(`PhonePe V2 Check Status Response for ${txnId}:`, JSON.stringify(responseData));
     } catch (apiErr) {
-      console.warn(`PhonePe V2 Status API call failed: ${apiErr.message}. Falling back to sandbox checkout simulator.`);
-      return res.redirect(`${currentBaseUrl}/api/payment-mock-checkout?txnId=${txnId}`);
+      console.warn(`PhonePe V2 Status API call failed: ${apiErr.message}.`);
+      const isLocal = req.hostname === "localhost" || req.hostname === "127.0.0.1" || req.hostname.startsWith("192.168.") || req.hostname.startsWith("10.") || req.hostname.startsWith("172.");
+      if (isLocal) {
+        return res.redirect(`${currentBaseUrl}/api/payment-mock-checkout?txnId=${txnId}`);
+      } else {
+        return res.redirect(`${currentBaseUrl}/?status=pending_verification&txnId=${txnId}`);
+      }
     }
 
     if (responseData && responseData.state === "COMPLETED") {
@@ -675,10 +773,9 @@ app.all("/api/payment-response", async (req, res) => {
     }
   } catch (error) {
     console.error("Error handling payment redirect response:", error.message);
-    const txnId = req.query.txnId || req.body.merchantTransactionId;
+    const { txnId } = extractPaymentData(req);
     if (txnId) {
       return res.redirect(`${currentBaseUrl}/?status=failed&txnId=${txnId}`);
-
     }
     return res.redirect(`${baseUrl}/?status=failed`);
   }
@@ -689,13 +786,10 @@ app.post("/api/payment-callback", async (req, res) => {
   try {
     console.log("PhonePe Webhook callback received:", JSON.stringify(req.body));
     
-    // Parse transaction details depending on V2 webhook format
-    // V2 format has event type and payload: { type: "...", payload: { merchantOrderId: "...", state: "..." } }
-    const txnId = req.body.payload ? req.body.payload.merchantOrderId : null;
-    const state = req.body.payload ? req.body.payload.state : null;
+    const { txnId, state } = extractPaymentData(req);
 
     if (!txnId) {
-      console.error("No merchantOrderId found in webhook callback body.");
+      console.error("No transaction identifier (txnId) found in webhook callback.");
       return res.status(400).json({ error: "Missing transaction identifier in payload." });
     }
 
@@ -767,6 +861,14 @@ app.post("/api/payment-callback", async (req, res) => {
         await supabase.from("bookings").update({ status: "failed" }).eq("txn_id", txnId);
       } else {
         localBookings[txnId].status = "failed";
+      }
+    } else if (verifiedState === "PENDING") {
+      // Payment is pending_verification
+      booking.status = "pending_verification";
+      if (supabase) {
+        await supabase.from("bookings").update({ status: "pending_verification" }).eq("txn_id", txnId);
+      } else {
+        localBookings[txnId].status = "pending_verification";
       }
     }
 

@@ -371,7 +371,8 @@
         <h1>WAAKILI</h1>
         <p>Ticketing & UTR Verification Queue</p>
       </div>
-      <div>
+      <div style="display: flex; gap: 10px;">
+        <button id="btn-refresh" class="btn" onclick="refreshQueue()" style="padding: 10px 18px; font-size: 12px; background: var(--terracotta); color: var(--cream); border: 1px solid var(--terracotta)">Refresh Queue</button>
         <button class="btn" onclick="logout()" style="padding: 10px 18px; font-size: 12px; background: transparent; color: var(--ink-2); border: 1px solid oklch(0.8 0.02 75)">Lock Console</button>
       </div>
     </div>
@@ -484,6 +485,26 @@
       window.location.reload();
     }
 
+    async function refreshQueue() {
+      const passcode = localStorage.getItem("admin_passcode");
+      if (!passcode) return logout();
+      const btn = document.getElementById("btn-refresh");
+      const originalText = btn.innerText;
+      btn.innerText = "Refreshing...";
+      btn.disabled = true;
+      await fetchBookings(passcode);
+      btn.innerText = originalText;
+      btn.disabled = false;
+    }
+
+    // Auto-refresh every 30 seconds
+    setInterval(() => {
+      const passcode = localStorage.getItem("admin_passcode");
+      if (passcode) {
+        fetchBookings(passcode);
+      }
+    }, 30000);
+
     async function fetchBookings(passcode) {
       try {
         const response = await fetch("/api/admin/bookings", {
@@ -505,7 +526,7 @@
     function updateStats() {
       const total = bookingsData.length;
       const confirmed = bookingsData.filter(b => b.status === "success").length;
-      const pending = bookingsData.filter(b => b.status === "pending_verification").length;
+      const pending = bookingsData.filter(b => b.status === "pending_verification" || b.status === "payment_initiated").length;
       
       const revenue = bookingsData
         .filter(b => b.status === "success")
@@ -533,7 +554,11 @@
 
       // Apply Tabs Filter
       if (currentFilter !== "all") {
-        filtered = filtered.filter(b => b.status === currentFilter);
+        if (currentFilter === "pending_verification") {
+          filtered = filtered.filter(b => b.status === "pending_verification" || b.status === "payment_initiated");
+        } else {
+          filtered = filtered.filter(b => b.status === currentFilter);
+        }
       }
 
       // Apply Search Filter
@@ -570,7 +595,7 @@
 
         // Actions Row
         let actions = ``;
-        if (b.status === "pending_verification") {
+        if (b.status === "pending_verification" || b.status === "payment_initiated") {
           actions = `
             <div class="actions-cell">
               <button class="btn-action btn-approve" onclick="handleAction('${b.txnId || ""}', 'approve', this)">Approve</button>
