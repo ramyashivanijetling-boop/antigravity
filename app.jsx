@@ -893,7 +893,7 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
                       type="text"
                       value={couponInput}
                       onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
-                      placeholder="Enter code (e.g. AG15)"
+                      placeholder="Enter code (e.g. WELCOME)"
                       disabled={appliedCoupon !== null}
                       style={{ 
                         textTransform: "uppercase", 
