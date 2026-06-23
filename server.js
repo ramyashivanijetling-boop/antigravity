@@ -426,15 +426,16 @@ app.post("/api/validate-coupon", (req, res) => {
     const addonsTotal = (potteryQty * 199) + (banglesQty * 249) + (comboQty * 399);
     const subtotal = ticketsTotal + addonsTotal;
 
-    if (cleanCode === "Preetham") {
+    const upperCode = cleanCode.toUpperCase();
+    if (upperCode === "PREETHAM") {
       return res.json({
         valid: true,
-        code: "Preetham",
+        code: "PREETHAM",
         type: "flat",
         value: 99,
         discount: 99
       });
-    } else if (cleanCode === "AG15") {
+    } else if (upperCode === "AG15") {
       const discount = Math.round(subtotal * 0.15);
       return res.json({
         valid: true,
@@ -494,8 +495,8 @@ app.post("/api/pay", async (req, res) => {
     
     let discount = 0;
     if (couponCode) {
-      const cleanCoupon = couponCode.trim();
-      if (cleanCoupon === "Preetham") {
+      const cleanCoupon = couponCode.trim().toUpperCase();
+      if (cleanCoupon === "PREETHAM") {
         discount = 99;
       } else if (cleanCoupon === "AG15") {
         discount = Math.round((ticketsTotal + addonsTotal) * 0.15);
