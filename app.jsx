@@ -286,6 +286,13 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
   const [banglesQty, setBanglesQty] = useState(0);
   const [comboQty, setComboQty] = useState(0);
 
+  // Coupon states
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState(null); // format: { code: '...', type: 'flat'|'percentage', value: number }
+  const [couponError, setCouponError] = useState("");
+  const [couponSuccess, setCouponSuccess] = useState("");
+  const [couponLoading, setCouponLoading] = useState(false);
+
   // Adjust guest names length to match ticket quantity
   useEffect(() => {
     setNames(prev => {
@@ -378,6 +385,11 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
         setCheriyalQty(0);
         setBanglesQty(0);
         setComboQty(0);
+        setCouponInput("");
+        setAppliedCoupon(null);
+        setCouponError("");
+        setCouponSuccess("");
+        setCouponLoading(false);
       }
     }
   }, [open, paymentResult]);
@@ -390,14 +402,74 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
   const addonsTotal = (potteryQty * 199) + (cheriyalQty * 249) + (banglesQty * 249) + (comboQty * 399);
   const gstTotal = Math.round(addonsTotal * 0.18);
   const total = ticketsTotal; // keeps backward-compatibility
-  const fees = Math.round((ticketsTotal + addonsTotal + gstTotal) * 0.03);
-  const grand = ticketsTotal + addonsTotal + gstTotal + fees;
+
+  // Calculate discount based on subtotal (ticketsTotal + addonsTotal)
+  const subtotal = ticketsTotal + addonsTotal;
+  let discount = 0;
+  if (appliedCoupon) {
+    if (appliedCoupon.type === "flat") {
+      discount = appliedCoupon.value;
+    } else if (appliedCoupon.type === "percentage") {
+      discount = Math.round(subtotal * (appliedCoupon.value / 100));
+    }
+  }
+  const subtotalAfterDiscount = Math.max(0, subtotal - discount);
+
+  const fees = Math.round((subtotalAfterDiscount + gstTotal) * 0.03);
+  const grand = subtotalAfterDiscount + gstTotal + fees;
 
   const canNext1 = qty >= 1 && qty <= 8;
   const canNext2 = names.every(n => n.trim() !== "") && /^\S+@\S+\.\S+$/.test(form.email) && form.phone.replace(/\D/g, "").length >= 10;
   const canPayUPI = /^\d{12}$/.test(utr.trim());
 
   // Redirect to PhonePe Payment Gateway
+  const handleApplyCoupon = async () => {
+    if (!couponInput.trim()) return;
+    setCouponLoading(true);
+    setCouponError("");
+    setCouponSuccess("");
+    try {
+      const res = await fetch("/api/validate-coupon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: couponInput,
+          qty,
+          addons: {
+            pottery: potteryQty,
+            bangles: banglesQty,
+            combo: comboQty
+          }
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.valid) {
+        setAppliedCoupon({
+          code: data.code,
+          type: data.type,
+          value: data.value
+        });
+        setCouponSuccess(`Coupon "${data.code}" applied successfully! You got ₹${data.discount} off.`);
+      } else {
+        setAppliedCoupon(null);
+        setCouponError(data.error || "Invalid coupon code.");
+      }
+    } catch (err) {
+      console.error(err);
+      setAppliedCoupon(null);
+      setCouponError("Failed to validate coupon code. Please try again.");
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput("");
+    setCouponSuccess("");
+    setCouponError("");
+  };
+
   const handlePayPhonePe = () => {
     setPayLoading(true);
     setPaymentError("");
@@ -411,6 +483,7 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
         email: form.email,
         phone: form.phone,
         grand,
+        couponCode: appliedCoupon ? appliedCoupon.code : undefined,
         addons: {
           pottery: potteryQty,
           cheriyal: cheriyalQty,
@@ -792,6 +865,13 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
                     </div>
                   )}
 
+                  {discount > 0 && (
+                    <div style={{ display: "flex", justifyContent: "space-between", width: "100%", color: "var(--green)", fontWeight: "600" }}>
+                      <span>Discount ({appliedCoupon ? appliedCoupon.code : ""})</span>
+                      <span>-₹{discount.toLocaleString("en-IN")}</span>
+                    </div>
+                  )}
+
                   <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
                     <span>Booking Fees (3%)</span>
                     <span style={{ fontWeight: "600" }}>₹{fees.toLocaleString("en-IN")}</span>
@@ -803,6 +883,60 @@ const BookingFlow = ({ open, onClose, paymentResult }) => {
                     <span>Total Amount</span>
                     <span style={{ color: "var(--terracotta)" }}>₹{grand.toLocaleString("en-IN")}</span>
                   </div>
+                </div>
+
+                {/* Coupon Code Section */}
+                <div className="field" style={{ marginBottom: "20px" }}>
+                  <label style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--muted)", display: "block", marginBottom: "6px" }}>Promo / Coupon Code</label>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <input
+                      type="text"
+                      value={couponInput}
+                      onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                      placeholder="Enter code (e.g. AG15)"
+                      disabled={appliedCoupon !== null}
+                      style={{ 
+                        textTransform: "uppercase", 
+                        flex: 1, 
+                        padding: "10px 14px", 
+                        border: "1px solid oklch(0.85 0.02 75)", 
+                        background: "var(--cream)",
+                        fontSize: "14px"
+                      }}
+                    />
+                    {appliedCoupon ? (
+                      <button 
+                        className="btn-primary" 
+                        onClick={handleRemoveCoupon} 
+                        style={{ 
+                          width: "auto", 
+                          margin: 0, 
+                          padding: "10px 16px", 
+                          background: "var(--terracotta)", 
+                          borderColor: "var(--terracotta)",
+                          fontSize: "12px"
+                        }}
+                      >
+                        Remove
+                      </button>
+                    ) : (
+                      <button 
+                        className="btn-primary" 
+                        onClick={handleApplyCoupon} 
+                        disabled={couponLoading || !couponInput.trim()} 
+                        style={{ 
+                          width: "auto", 
+                          margin: 0, 
+                          padding: "10px 16px",
+                          fontSize: "12px"
+                        }}
+                      >
+                        {couponLoading ? "Applying..." : "Apply"}
+                      </button>
+                    )}
+                  </div>
+                  {couponError && <div style={{ color: "var(--terracotta)", fontSize: "12px", marginTop: "6px", fontStyle: "italic" }}>{couponError}</div>}
+                  {couponSuccess && <div style={{ color: "var(--green)", fontSize: "12px", marginTop: "6px", fontWeight: "500" }}>{couponSuccess}</div>}
                 </div>
 
                 <button 

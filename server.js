@@ -405,10 +405,57 @@ app.get("/api/payment-config", (req, res) => {
   });
 });
 
+// API: Validate Coupon Code
+app.post("/api/validate-coupon", (req, res) => {
+  try {
+    const { code, qty, addons } = req.body;
+    if (!code) {
+      return res.status(400).json({ error: "Coupon code is required." });
+    }
+
+    const cleanCode = code.trim();
+    const cleanQty = parseInt(qty) || 0;
+    
+    // Parse Addons
+    const potteryQty = addons && typeof addons.pottery === 'number' ? Math.max(0, parseInt(addons.pottery)) : 0;
+    const banglesQty = addons && typeof addons.bangles === 'number' ? Math.max(0, parseInt(addons.bangles)) : 0;
+    const comboQty = addons && typeof addons.combo === 'number' ? Math.max(0, parseInt(addons.combo)) : 0;
+
+    const pricePerPerson = 499;
+    const ticketsTotal = cleanQty * pricePerPerson;
+    const addonsTotal = (potteryQty * 199) + (banglesQty * 249) + (comboQty * 399);
+    const subtotal = ticketsTotal + addonsTotal;
+
+    if (cleanCode === "Preetham") {
+      return res.json({
+        valid: true,
+        code: "Preetham",
+        type: "flat",
+        value: 99,
+        discount: 99
+      });
+    } else if (cleanCode === "AG15") {
+      const discount = Math.round(subtotal * 0.15);
+      return res.json({
+        valid: true,
+        code: "AG15",
+        type: "percentage",
+        value: 15,
+        discount: discount
+      });
+    } else {
+      return res.status(400).json({ error: "Invalid coupon code." });
+    }
+  } catch (error) {
+    console.error("Coupon validation error:", error.message);
+    return res.status(500).json({ error: "Server error validating coupon." });
+  }
+});
+
 // API: Submit Booking and Initiate PhonePe Gateway Payment
 app.post("/api/pay", async (req, res) => {
   try {
-    const { qty, names, email, phone, grand, addons } = req.body;
+    const { qty, names, email, phone, grand, addons, couponCode } = req.body;
 
     // 1. Structural Validation
     if (!qty || !names || !email || !phone || !grand) {
@@ -444,9 +491,25 @@ app.post("/api/pay", async (req, res) => {
     const pricePerPerson = 499;
     const ticketsTotal = cleanQty * pricePerPerson;
     const addonsTotal = (potteryQty * 199) + (banglesQty * 249) + (comboQty * 399);
+    
+    let discount = 0;
+    if (couponCode) {
+      const cleanCoupon = couponCode.trim();
+      if (cleanCoupon === "Preetham") {
+        discount = 99;
+      } else if (cleanCoupon === "AG15") {
+        discount = Math.round((ticketsTotal + addonsTotal) * 0.15);
+      } else {
+        return res.status(400).json({ error: "Invalid coupon code." });
+      }
+    }
+
+    const subtotal = ticketsTotal + addonsTotal;
+    const subtotalAfterDiscount = Math.max(0, subtotal - discount);
+
     const gstTotal = Math.round(addonsTotal * 0.18);
-    const computedFees = Math.round((ticketsTotal + addonsTotal + gstTotal) * 0.03);
-    const computedGrand = ticketsTotal + addonsTotal + gstTotal + computedFees;
+    const computedFees = Math.round((subtotalAfterDiscount + gstTotal) * 0.03);
+    const computedGrand = subtotalAfterDiscount + gstTotal + computedFees;
 
     if (parseInt(grand) !== computedGrand) {
       return res.status(400).json({ error: "Financial parameter mismatch. Booking aborted." });
@@ -455,9 +518,15 @@ app.post("/api/pay", async (req, res) => {
     // Unique Order Transaction ID
     const txnId = "WKL-" + Math.random().toString(36).slice(2, 6).toUpperCase() + "-" + Math.floor(Math.random() * 9000 + 1000);
 
-    // Save addons description inside UTR column
+    // Save addons description and coupon inside UTR column
     const addonsStr = `pottery:${potteryQty};bangles:${banglesQty};combo:${comboQty}`;
-    const utrValue = addonsTotal > 0 ? `PhonePe|${addonsStr}` : "PhonePe";
+    let utrValue = "PhonePe";
+    const parts = [];
+    if (addonsTotal > 0) parts.push(addonsStr);
+    if (couponCode) parts.push(`coupon:${couponCode}`);
+    if (parts.length > 0) {
+      utrValue = `PhonePe|${parts.join('|')}`;
+    }
 
     const bookingRecord = {
       qty: cleanQty,
